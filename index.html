@@ -3,20 +3,18 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Simple Card Gacha</title>
+  <title>Pack Open (5)</title>
   <style>
     :root{
       --bg1:#0b0d12;
       --bg2:#101626;
-      --panel: rgba(255,255,255,.06);
-      --panel2: rgba(255,255,255,.10);
       --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.65);
 
-      --silver1:#cfd6de; --silver2:#7f8a96;
-      --gold1:#ffd36b;   --gold2:#a67618;
-      --coral1:#ff9fb3;  --coral2:#ff4f7b;
-      --opal1:#9ff3ff;   --opal2:#ffb6ff;
+      --silverGlow: rgba(190,206,220,.22);
+      --goldGlow: rgba(255,211,107,.25);
+      --coralGlow: rgba(255,127,160,.28);
+      --opalGlow: rgba(159,243,255,.22);
 
       --coralText:#ff7fa0;
     }
@@ -31,40 +29,11 @@
                   linear-gradient(180deg, var(--bg1), var(--bg2));
       overflow-x:hidden;
     }
-    .wrap{
-      max-width:980px;
-      margin:0 auto;
-      padding:20px 16px 40px;
-    }
-    header{
-      display:flex;
-      justify-content:space-between;
-      align-items:center;
-      gap:12px;
-      margin-bottom:14px;
-    }
-    .title{
-      display:flex;
-      flex-direction:column;
-      gap:4px;
-    }
-    .title h1{
-      font-size:18px;
-      margin:0;
-      letter-spacing:.2px;
-    }
-    .title .sub{
-      font-size:12px;
-      color:var(--muted);
-    }
-
-    .controls{
-      display:flex;
-      gap:10px;
-      flex-wrap:wrap;
-      justify-content:flex-end;
-      align-items:center;
-    }
+    .wrap{max-width:980px;margin:0 auto;padding:20px 16px 40px;}
+    header{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;}
+    .title h1{font-size:18px;margin:0;letter-spacing:.2px}
+    .title .sub{font-size:12px;color:var(--muted);margin-top:4px}
+    .controls{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:flex-end}
     button{
       appearance:none;
       border:1px solid rgba(255,255,255,.16);
@@ -72,27 +41,16 @@
       color:var(--text);
       border-radius:14px;
       padding:10px 14px;
-      font-weight:700;
+      font-weight:800;
       cursor:pointer;
       letter-spacing:.2px;
-      transition: transform .08s ease, border-color .2s ease, background .2s ease;
+      transition: transform .08s ease, border-color .2s ease;
       user-select:none;
     }
     button:hover{ border-color: rgba(255,255,255,.28); }
     button:active{ transform: translateY(1px) scale(.99); }
-    button:disabled{
-      opacity:.45;
-      cursor:not-allowed;
-    }
-    .pill{
-      padding:8px 10px;
-      border-radius:999px;
-      border:1px solid rgba(255,255,255,.14);
-      background: rgba(255,255,255,.06);
-      font-size:12px;
-      color:var(--muted);
-      user-select:none;
-    }
+    button:disabled{opacity:.45;cursor:not-allowed;}
+    .pill{padding:8px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.14);background: rgba(255,255,255,.06);font-size:12px;color:var(--muted);user-select:none;}
 
     .stage{
       margin-top:16px;
@@ -106,80 +64,42 @@
     }
 
     /* full-screen flash */
-    #flash{
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      opacity:0;
-      z-index:999;
-      mix-blend-mode: screen;
-    }
-    #flash.play{
-      animation: flashPop 520ms ease-out forwards;
-    }
-    @keyframes flashPop{
-      0%{opacity:0}
-      15%{opacity:.85}
-      100%{opacity:0}
-    }
+    #flash{position:fixed; inset:0; pointer-events:none; opacity:0; z-index:999; mix-blend-mode: screen;}
+    #flash.play{ animation: flashPop 520ms ease-out forwards; }
+    @keyframes flashPop{ 0%{opacity:0} 15%{opacity:.85} 100%{opacity:0} }
 
-    /* pack area */
-    .packLayer{
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-      z-index:5;
-      pointer-events:none;
-    }
+    /* Pack layer */
+    .packLayer{position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none;}
     .packCard{
       width:min(340px, 65vw);
       aspect-ratio: 2/3;
-      display:grid;
-      place-items:center;
+      display:grid; place-items:center;
       filter: drop-shadow(0 22px 28px rgba(0,0,0,.45));
       transform: translateY(0);
       opacity:1;
+      position:relative;
     }
-    .packCard img{
-      width:100%;
-      height:100%;
-      object-fit:contain;
-      display:block;
-    }
-    .packCard.opening{
-      animation: packDropFade 980ms cubic-bezier(.2,.85,.2,1) forwards;
-    }
+    .packCard img{width:100%;height:100%;object-fit:contain;display:block;}
+    .packCard.opening{ animation: packDropFade 980ms cubic-bezier(.2,.85,.2,1) forwards; }
     @keyframes packDropFade{
       0%{transform: translateY(0) scale(1); opacity:1}
       70%{transform: translateY(220px) scale(.985); opacity:.35}
       100%{transform: translateY(320px) scale(.97); opacity:0}
     }
 
-    /* reveal area */
+    /* Reveal layer */
     .revealLayer{
-      position:absolute;
-      inset:0;
-      display:flex;
-      flex-direction:column;
-      gap:14px;
-      align-items:center;
-      justify-content:center;
+      position:absolute; inset:0;
+      display:flex; flex-direction:column; gap:14px;
+      align-items:center; justify-content:center;
       padding:26px 16px 22px;
       z-index:2;
     }
-
     .hint{
-      text-align:center;
-      color:var(--muted);
-      font-weight:700;
-      letter-spacing:.2px;
-      user-select:none;
-      background: rgba(0,0,0,.22);
+      text-align:center;color:var(--muted);font-weight:800;letter-spacing:.2px;
+      user-select:none;background: rgba(0,0,0,.22);
       border:1px solid rgba(255,255,255,.10);
-      padding:10px 14px;
-      border-radius:999px;
-      backdrop-filter: blur(6px);
+      padding:10px 14px;border-radius:999px;backdrop-filter: blur(6px);
     }
 
     .slot{
@@ -190,170 +110,34 @@
       place-items:center;
     }
 
-    /* card frame + effects */
-    .cardWrap{
-      width:100%;
-      height:100%;
+    /* "card is inside pack" ghost */
+    .ghost{
+      position:absolute;
+      width:92%;
+      height:92%;
       border-radius:22px;
-      position:relative;
       overflow:hidden;
-      transform: scale(.90);
       opacity:0;
-      filter: drop-shadow(0 26px 34px rgba(0,0,0,.55));
-    }
-    .cardWrap.show{
-      animation: cardIn 520ms cubic-bezier(.2,.9,.2,1) forwards;
-    }
-    @keyframes cardIn{
-      0%{transform: scale(.88) translateY(18px); opacity:0}
-      100%{transform: scale(1) translateY(0); opacity:1}
-    }
-
-    .cardWrap::before{
-      content:"";
-      position:absolute;
-      inset:-2px;
-      border-radius:24px;
-      padding:2px;
-      background: linear-gradient(135deg, rgba(255,255,255,.40), rgba(255,255,255,0));
-      -webkit-mask:
-        linear-gradient(#000 0 0) content-box,
-        linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events:none;
-      opacity:.75;
-    }
-
-    .cardWrap .img{
-      position:absolute;
-      inset:0;
-      display:block;
-      width:100%;
-      height:100%;
-      object-fit:cover;
-      transform: scale(1.02);
-      background: rgba(255,255,255,.05);
-    }
-
-    /* rarity glow */
-    .rarityBadge{
-      position:absolute;
-      left:14px;
-      top:14px;
-      font-weight:900;
-      font-size:12px;
-      letter-spacing:.9px;
-      padding:7px 10px;
-      border-radius:999px;
-      background: rgba(0,0,0,.35);
-      border:1px solid rgba(255,255,255,.12);
-      user-select:none;
-      text-transform: uppercase;
-    }
-
-    .cardWrap.silver{
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,.10) inset,
-        0 0 28px rgba(190,206,220,.22),
-        0 0 60px rgba(190,206,220,.14);
-    }
-    .cardWrap.silver::after{
-      content:"";
-      position:absolute;
-      inset:-40%;
-      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,.26), transparent 55%),
-                  radial-gradient(circle at 70% 55%, rgba(255,255,255,.12), transparent 60%);
-      opacity:.65;
+      transform: scale(.98);
+      filter: blur(.2px) saturate(.9);
+      z-index:1;
       pointer-events:none;
     }
-
-    .cardWrap.gold{
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,.10) inset,
-        0 0 36px rgba(255,211,107,.25),
-        0 0 90px rgba(255,211,107,.18);
-    }
-    .cardWrap.gold::after{
+    .ghost.show{opacity:.22; transition: opacity 180ms ease;}
+    .ghost img{width:100%;height:100%;object-fit:cover;display:block;}
+    .ghost::after{
       content:"";
-      position:absolute;
-      inset:-50%;
+      position:absolute; inset:0;
       background:
-        conic-gradient(from 120deg,
-          rgba(255,211,107,.0),
-          rgba(255,211,107,.25),
-          rgba(255,211,107,.0),
-          rgba(255,211,107,.18),
-          rgba(255,211,107,.0));
-      animation: spin 1.6s linear infinite;
+        linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,0) 28%, rgba(255,255,255,.08) 55%, rgba(255,255,255,0) 80%),
+        radial-gradient(circle at 30% 20%, rgba(255,255,255,.10), transparent 55%);
+      mix-blend-mode: screen;
       opacity:.9;
-      pointer-events:none;
-      mix-blend-mode: screen;
     }
 
-    .cardWrap.coral{
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,.12) inset,
-        0 0 44px rgba(255,127,160,.28),
-        0 0 120px rgba(255,80,125,.20);
-    }
-    .cardWrap.coral::after{
-      content:"";
-      position:absolute;
-      inset:-55%;
-      background:
-        radial-gradient(circle at 25% 35%, rgba(255,159,179,.55), transparent 55%),
-        radial-gradient(circle at 70% 55%, rgba(255,79,123,.40), transparent 60%),
-        conic-gradient(from 60deg, rgba(255,255,255,0), rgba(255,255,255,.18), rgba(255,255,255,0));
-      animation: spin 1.8s linear infinite;
-      opacity:.95;
-      pointer-events:none;
-      mix-blend-mode: screen;
-    }
-
-    .cardWrap.opal{
-      box-shadow:
-        0 0 0 1px rgba(255,255,255,.14) inset,
-        0 0 54px rgba(159,243,255,.22),
-        0 0 150px rgba(255,182,255,.20);
-    }
-    .cardWrap.opal::after{
-      content:"";
-      position:absolute;
-      inset:-60%;
-      background:
-        conic-gradient(from 0deg,
-          rgba(255,  0,180,.0),
-          rgba(140, 80,255,.35),
-          rgba( 70,220,255,.35),
-          rgba(120,255,160,.28),
-          rgba(255,240,120,.30),
-          rgba(255,120,200,.35),
-          rgba(140, 80,255,.35));
-      background-size: 200% 200%;
-      animation: spin 1.3s linear infinite;
-      opacity:1;
-      pointer-events:none;
-      mix-blend-mode: screen;
-      filter: blur(.2px);
-    }
-    @keyframes spin{
-      from{transform: rotate(0deg)}
-      to{transform: rotate(360deg)}
-    }
-
-    /* prelude (logo + position + rarity text) for coral/opal */
-    .prelude{
-      position:absolute;
-      inset:0;
-      display:grid;
-      place-items:center;
-      opacity:0;
-      pointer-events:none;
-    }
-    .prelude.show{
-      animation: preludePop 980ms ease-out forwards;
-    }
+    /* Prelude for coral/opal */
+    .prelude{position:absolute; inset:0; display:grid; place-items:center; opacity:0; pointer-events:none; z-index:5;}
+    .prelude.show{ animation: preludePop 980ms ease-out forwards; }
     @keyframes preludePop{
       0%{opacity:0; transform: scale(.96)}
       20%{opacity:1; transform: scale(1)}
@@ -369,69 +153,138 @@
       box-shadow: 0 18px 55px rgba(0,0,0,.45);
       backdrop-filter: blur(8px);
       text-align:center;
-      display:flex;
-      flex-direction:column;
-      align-items:center;
-      gap:10px;
+      display:flex; flex-direction:column; align-items:center; gap:10px;
     }
-    .teamLogo{
-      width:64px; height:64px;
-      object-fit:contain;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
-    }
-    .posText{
-      font-weight:1000;
-      letter-spacing:2px;
-      font-size:22px;
-      line-height:1;
-    }
-    .rarText{
-      font-weight:1000;
-      letter-spacing:2px;
-      font-size:20px;
-      line-height:1;
-      text-transform: uppercase;
-    }
+    .teamLogo{ width:64px; height:64px; object-fit:contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
+    .posText{ font-weight:1000; letter-spacing:2px; font-size:22px; line-height:1; }
+    .rarText{ font-weight:1000; letter-spacing:2px; font-size:20px; line-height:1; text-transform: uppercase; }
     .rarText.coral{ color: var(--coralText); text-shadow: 0 0 18px rgba(255,127,160,.45); }
     .rarText.opal{
-      color: white;
-      text-shadow: 0 0 18px rgba(159,243,255,.35), 0 0 26px rgba(255,182,255,.25);
       background: linear-gradient(90deg, rgba(255,182,255,.9), rgba(159,243,255,.9), rgba(255,240,120,.9), rgba(255,182,255,.9));
-      -webkit-background-clip:text;
-      background-clip:text;
-      color: transparent;
+      -webkit-background-clip:text; background-clip:text; color: transparent;
+      text-shadow: 0 0 18px rgba(159,243,255,.25);
     }
 
-    /* bottom history */
-    .history{
+    /* Card wrap */
+    .cardWrap{
+      width:100%; height:100%;
+      border-radius:22px;
+      position:relative;
+      overflow:hidden;
+      transform: scale(.90);
+      opacity:0;
+      filter: drop-shadow(0 26px 34px rgba(0,0,0,.55));
+      z-index:3;
+    }
+    .cardWrap.show{ animation: cardIn 520ms cubic-bezier(.2,.9,.2,1) forwards; }
+    @keyframes cardIn{
+      0%{transform: scale(.88) translateY(18px); opacity:0}
+      100%{transform: scale(1) translateY(0); opacity:1}
+    }
+    .cardWrap::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius:24px;
+      padding:2px;
+      background: linear-gradient(135deg, rgba(255,255,255,.40), rgba(255,255,255,0));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events:none;
+      opacity:.75;
+    }
+    .cardWrap .img{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit:cover;
+      transform: scale(1.02);
+      background: rgba(255,255,255,.05);
+    }
+    .rarityBadge{
+      position:absolute; left:14px; top:14px;
+      font-weight:1000; font-size:12px; letter-spacing:.9px;
+      padding:7px 10px; border-radius:999px;
+      background: rgba(0,0,0,.35);
+      border:1px solid rgba(255,255,255,.12);
+      user-select:none; text-transform: uppercase;
+      z-index:6;
+    }
+
+    /* rarity glows */
+    .cardWrap.silver{ box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 28px var(--silverGlow), 0 0 60px rgba(190,206,220,.14); }
+    .cardWrap.gold{   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 36px var(--goldGlow),   0 0 90px rgba(255,211,107,.18); }
+    .cardWrap.coral{  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 0 44px var(--coralGlow),  0 0 120px rgba(255,80,125,.20); }
+    .cardWrap.opal{   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 54px var(--opalGlow),   0 0 150px rgba(255,182,255,.20); }
+
+    /* base moving glow overlays for gold/coral/opal */
+    .cardWrap.gold::after, .cardWrap.coral::after, .cardWrap.opal::after{
+      content:"";
       position:absolute;
-      left:0; right:0; bottom:0;
+      inset:-60%;
+      pointer-events:none;
+      mix-blend-mode: screen;
+      animation: spin 1.4s linear infinite;
+      opacity:.9;
+    }
+    .cardWrap.gold::after{
+      background: conic-gradient(from 120deg, rgba(255,211,107,.0), rgba(255,211,107,.25), rgba(255,211,107,.0), rgba(255,211,107,.18), rgba(255,211,107,.0));
+    }
+    .cardWrap.coral::after{
+      background:
+        radial-gradient(circle at 25% 35%, rgba(255,159,179,.55), transparent 55%),
+        radial-gradient(circle at 70% 55%, rgba(255,79,123,.40), transparent 60%),
+        conic-gradient(from 60deg, rgba(255,255,255,0), rgba(255,255,255,.18), rgba(255,255,255,0));
+    }
+    .cardWrap.opal::after{
+      background: conic-gradient(from 0deg,
+        rgba(255,  0,180,.0),
+        rgba(140, 80,255,.35),
+        rgba( 70,220,255,.35),
+        rgba(120,255,160,.28),
+        rgba(255,240,120,.30),
+        rgba(255,120,200,.35),
+        rgba(140, 80,255,.35));
+      opacity:1;
+    }
+    @keyframes spin{ from{transform: rotate(0deg)} to{transform: rotate(360deg)} }
+
+    /* Prism scan line (only coral/opal) */
+    .scan{position:absolute; inset:-20%; opacity:0; pointer-events:none; z-index:7; mix-blend-mode: screen; filter: blur(.2px);}
+    .scan.play{ animation: scanMove 900ms ease-out forwards; }
+    @keyframes scanMove{
+      0%{opacity:0; transform: translate(-35%, -25%) rotate(18deg)}
+      15%{opacity:.95}
+      100%{opacity:0; transform: translate(35%, 25%) rotate(18deg)}
+    }
+    .scan::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg,
+          rgba(255,255,255,0),
+          rgba(255,255,255,.05) 18%,
+          rgba(255,255,255,.55) 35%,
+          rgba(255,240,120,.25) 44%,
+          rgba(159,243,255,.25) 55%,
+          rgba(255,182,255,.25) 66%,
+          rgba(255,255,255,.40) 78%,
+          rgba(255,255,255,0));
+    }
+
+    .history{
+      position:absolute; left:0; right:0; bottom:0;
       padding:12px 14px 14px;
       border-top:1px solid rgba(255,255,255,.10);
       background: rgba(0,0,0,.20);
       backdrop-filter: blur(8px);
-      display:flex;
-      flex-direction:column;
-      gap:8px;
+      display:flex; flex-direction:column; gap:8px;
+      z-index:10;
     }
-    .historyRow{
-      display:flex;
-      justify-content:space-between;
-      gap:10px;
-      align-items:center;
-      color:var(--muted);
-      font-size:12px;
-    }
-    .log{
-      display:flex;
-      flex-wrap:wrap;
-      gap:8px;
-    }
+    .historyRow{display:flex;justify-content:space-between;gap:10px;align-items:center;color:var(--muted);font-size:12px;}
+    .log{display:flex;flex-wrap:wrap;gap:8px;}
     .chip{
-      font-size:12px;
-      font-weight:800;
-      padding:6px 10px;
-      border-radius:999px;
+      font-size:12px;font-weight:900;padding:6px 10px;border-radius:999px;
       border:1px solid rgba(255,255,255,.12);
       background: rgba(255,255,255,.06);
       color: rgba(255,255,255,.78);
@@ -442,19 +295,10 @@
     .chip.coral{ border-color: rgba(255,127,160,.30); }
     .chip.opal{ border-color: rgba(159,243,255,.25); }
 
-    .clickCatcher{
-      position:absolute;
-      inset:0;
-      z-index:3;
-      cursor:pointer;
-    }
+    .clickCatcher{position:absolute; inset:0; z-index:8; cursor:pointer;}
     .clickCatcher.off{ pointer-events:none; cursor:default; }
 
-    .small{
-      font-size:12px;
-      color:var(--muted);
-    }
-
+    .small{font-size:12px;color:var(--muted);}
     @media (max-width:540px){
       .stage{min-height: 520px}
       .slot{aspect-ratio: 2.1/3}
@@ -467,29 +311,30 @@
   <div class="wrap">
     <header>
       <div class="title">
-        <h1>Card Pack Gacha</h1>
-        <div class="sub">팩 → 내려 열기 → 클릭 1번당 카드 1장 공개</div>
+        <h1>Pack Open (5)</h1>
+        <div class="sub">팩이 내려가며 열리고 → 클릭 1번당 카드 1장 공개</div>
       </div>
       <div class="controls">
-        <button id="btn1">1장 뽑기</button>
-        <button id="btn10">10장 뽑기</button>
+        <button id="btnPack">팩 열기 (5장)</button>
         <div class="pill" id="status">대기 중</div>
       </div>
     </header>
 
     <section class="stage" id="stage">
-      <!-- Pack animation layer -->
       <div class="packLayer" id="packLayer" aria-hidden="true">
         <div class="packCard" id="packCard">
           <img src="pack.png" alt="pack" />
         </div>
       </div>
 
-      <!-- Reveal layer -->
       <div class="revealLayer">
-        <div class="hint" id="hint">버튼을 눌러 뽑기 시작</div>
+        <div class="hint" id="hint">버튼을 눌러 팩을 여세요</div>
 
         <div class="slot">
+          <div class="ghost" id="ghost">
+            <img id="ghostImg" alt="ghost card" />
+          </div>
+
           <div class="prelude" id="prelude">
             <div class="preludeBox">
               <img class="teamLogo" id="preludeLogo" alt="team logo" />
@@ -501,6 +346,7 @@
 
           <div class="cardWrap" id="cardWrap" aria-live="polite">
             <div class="rarityBadge" id="rarityBadge">SILVER</div>
+            <div class="scan" id="scan"></div>
             <img class="img" id="cardImg" alt="card" />
           </div>
         </div>
@@ -513,7 +359,7 @@
       <div class="history">
         <div class="historyRow">
           <div>최근 결과</div>
-          <div class="small">확률: 실버 86 / 골드 10 / 코랄 3 / 오팔 1 · 10연차는 골드 이상 1장 보장</div>
+          <div class="small">카드=고정등급 · 확률(등급 가중치)로 카드풀에서 뽑음 · 1팩=5장 · 보장 없음</div>
         </div>
         <div class="log" id="log"></div>
       </div>
@@ -522,71 +368,81 @@
 
   <script>
     // ===============================
-    // 1) 카드 풀(샘플) - 여기만 네 카드로 채우면 됨
+    // 1 카드 = 1 등급(고정)
+    // => 등급을 따로 굴리지 않고,
+    //    "등급이 붙어있는 카드 엔트리"를 가중치로 뽑는다.
     // ===============================
-    // 이미지 파일명 규칙 예: 57_SAM_TSUKI.png
-    // 로고 파일명 규칙 예: logos/SAM.png  (폴더 logos 필요)
     const SEASON = "57";
 
-    const cardPool = [
-      { teamAbbr:"SAM", teamName:"Samsung Lions", pos:"SP", name:"TSUKI", img:`${SEASON}_SAM_TSUKI.png`, logo:`logos/SAM.png` },
-      { teamAbbr:"SAM", teamName:"Samsung Lions", pos:"RP", name:"PUREUM", img:`${SEASON}_SAM_PUREUM.png`, logo:`logos/SAM.png` },
-      { teamAbbr:"KIA", teamName:"KIA Tigers", pos:"CF", name:"ASH", img:`${SEASON}_KIA_ASH.png`, logo:`logos/KIA.png` },
-      { teamAbbr:"DOO", teamName:"Doosan Bears", pos:"1B", name:"KAMEN", img:`${SEASON}_DOO_KAMEN.png`, logo:`logos/DOO.png` },
-      // 필요하면 계속 추가
+    // 등급별 가중치(원하는대로 바꾸면 됨)
+    const RARITY_WEIGHT = { silver:86, gold:10, coral:3, opal:1 };
+
+    // ✅ 카드 풀: 각 엔트리에 rarity가 고정으로 들어감
+    // 카드가 늘어나면 그냥 엔트리만 추가하면 됨.
+    const CARD_POOL = [
+      {
+        rarity:"gold", // <- 예시: TSUKI는 GOLD 고정
+        teamAbbr:"SAM",
+        pos:"SP",
+        name:"TSUKI",
+        img:`cards/${SEASON}_SAM_TSUKI.png`,
+        logo:`logos/SAM.png`
+      },
+
+      // 예시(파일만 추가하면 됨):
+      // {
+      //   rarity:"silver",
+      //   teamAbbr:"SAM",
+      //   pos:"SP",
+      //   name:"TSUKI",
+      //   img:`cards/${SEASON}_SAM_TSUKI_SILVER.png`,
+      //   logo:`logos/SAM.png`
+      // },
+      // {
+      //   rarity:"opal",
+      //   teamAbbr:"SAM",
+      //   pos:"SP",
+      //   name:"TSUKI",
+      //   img:`cards/${SEASON}_SAM_TSUKI_OPAL.png`,
+      //   logo:`logos/SAM.png`
+      // },
     ];
 
-    // ===============================
-    // 2) 확률 & 보장 로직
-    // ===============================
-    const baseRates = [
-      {rar:"silver", w:86},
-      {rar:"gold",   w:10},
-      {rar:"coral",  w:3},
-      {rar:"opal",   w:1},
-    ];
+    function pickWeightedCard(){
+      const list = CARD_POOL.map(c => ({
+        card: c,
+        w: (RARITY_WEIGHT[c.rarity] ?? 0)
+      })).filter(x => x.w > 0);
 
-    const guaranteeRates = [
-      {rar:"gold",  w:96},
-      {rar:"coral", w:3},
-      {rar:"opal",  w:1},
-    ];
+      if(list.length === 0){
+        // 안전장치: 가중치가 다 0이면 그냥 랜덤
+        return CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
+      }
 
-    function rollWeighted(list){
       const total = list.reduce((a,b)=>a+b.w,0);
-      let r = Math.random()*total;
+      let r = Math.random() * total;
+
       for(const it of list){
         r -= it.w;
-        if(r <= 0) return it.rar;
+        if(r <= 0) return it.card;
       }
-      return list[list.length-1].rar;
+      return list[list.length - 1].card;
     }
 
-    function pickCard(){
-      return cardPool[Math.floor(Math.random()*cardPool.length)];
-    }
-
-    function generateDraws(n){
+    function generatePack5(){
       const draws = [];
-      for(let i=0;i<n;i++){
-        draws.push({rar: rollWeighted(baseRates), card: pickCard()});
-      }
-      // 10연차 골드+ 보장: 골드 이상이 하나도 없으면 마지막을 보장 확률로 교체
-      if(n === 10){
-        const hasGoldPlus = draws.some(d => d.rar !== "silver");
-        if(!hasGoldPlus){
-          draws[9] = {rar: rollWeighted(guaranteeRates), card: pickCard()};
-        }
+      for(let i=0;i<5;i++){
+        const card = pickWeightedCard();
+        draws.push({ rar: card.rarity, card });
       }
       return draws;
     }
 
     // ===============================
-    // 3) UI 상태 머신
+    // UI
     // ===============================
     const els = {
-      btn1: document.getElementById("btn1"),
-      btn10: document.getElementById("btn10"),
+      btnPack: document.getElementById("btnPack"),
       status: document.getElementById("status"),
       hint: document.getElementById("hint"),
       subHint: document.getElementById("subHint"),
@@ -602,20 +458,17 @@
       preludeRar: document.getElementById("preludeRar"),
       log: document.getElementById("log"),
       flash: document.getElementById("flash"),
+      ghost: document.getElementById("ghost"),
+      ghostImg: document.getElementById("ghostImg"),
+      scan: document.getElementById("scan"),
     };
 
     let queue = [];
-    let revealing = false; // reveal 중(프렐류드 포함)
+    let revealing = false;
     let started = false;
 
-    function setBusy(isBusy){
-      els.btn1.disabled = isBusy;
-      els.btn10.disabled = isBusy;
-    }
-
-    function setStatus(text){
-      els.status.textContent = text;
-    }
+    function setBusy(isBusy){ els.btnPack.disabled = isBusy; }
+    function setStatus(text){ els.status.textContent = text; }
 
     function flashColor(rar){
       const colorMap = {
@@ -626,30 +479,84 @@
       };
       els.flash.style.background = colorMap[rar] || "rgba(255,255,255,.6)";
       els.flash.classList.remove("play");
-      // reflow
       void els.flash.offsetWidth;
       els.flash.classList.add("play");
     }
 
-    function clearCard(){
+    function rarityLabel(rar){ return String(rar || "").toUpperCase(); }
+
+    function addLogItem(rar, card){
+      const chip = document.createElement("div");
+      chip.className = `chip ${rar}`;
+      chip.textContent = `${rarityLabel(rar)} · ${card.teamAbbr} · ${card.name}`;
+      els.log.prepend(chip);
+      while(els.log.children.length > 12) els.log.removeChild(els.log.lastChild);
+    }
+
+    function clearStage(){
       els.cardWrap.className = "cardWrap";
       els.cardWrap.style.opacity = 0;
       els.cardImg.src = "";
       els.rarityBadge.textContent = "";
       els.subHint.textContent = "";
+      els.log.innerHTML = "";
+      els.prelude.classList.remove("show");
+      els.scan.classList.remove("play");
+      els.ghost.classList.remove("show");
+      els.ghostImg.src = "";
     }
 
-    function showPackThenStartReveal(){
-      // pack 보여주고 내려가며 페이드아웃
+    function playScanIfNeeded(rar){
+      if(rar !== "coral" && rar !== "opal") return;
+      els.scan.classList.remove("play");
+      void els.scan.offsetWidth;
+      els.scan.classList.add("play");
+    }
+
+    function applyRarity(rar){
+      els.cardWrap.classList.remove("silver","gold","coral","opal","show");
+      els.cardWrap.classList.add(rar);
+      els.rarityBadge.textContent = rarityLabel(rar);
+    }
+
+    function showPreludeIfNeeded(draw){
+      const { rar, card } = draw;
+      const needs = (rar === "coral" || rar === "opal");
+      if(!needs) return Promise.resolve();
+
+      els.preludeLogo.src = card.logo || "";
+      els.preludeLogo.onerror = () => { els.preludeLogo.src = ""; };
+
+      els.preludePos.textContent = card.pos || "";
+      els.preludeRar.textContent = rarityLabel(rar);
+      els.preludeRar.className = "rarText " + rar;
+
+      flashColor(rar);
+      els.prelude.classList.remove("show");
+      void els.prelude.offsetWidth;
+      els.prelude.classList.add("show");
+
+      return new Promise((resolve)=> setTimeout(resolve, 980));
+    }
+
+    function showGhost(nextDraw){
+      els.ghostImg.src = nextDraw.card.img;
+      els.ghostImg.onerror = () => { els.ghostImg.removeAttribute("src"); };
+      els.ghost.classList.add("show");
+    }
+    function hideGhost(){ els.ghost.classList.remove("show"); }
+
+    function showPackThenEnableClicks(){
       els.packLayer.style.display = "grid";
       els.packCard.classList.remove("opening");
       void els.packCard.offsetWidth;
-      els.packCard.classList.add("opening");
 
+      if(queue.length > 0) showGhost(queue[0]);
+
+      els.packCard.classList.add("opening");
       setStatus("팩 오픈 중…");
       els.hint.textContent = "팩을 여는 중…";
 
-      // 애니메이션 끝나면 reveal 모드로 전환
       const onEnd = () => {
         els.packCard.removeEventListener("animationend", onEnd);
         els.packLayer.style.display = "none";
@@ -662,129 +569,82 @@
       els.packCard.addEventListener("animationend", onEnd);
     }
 
-    function rarityLabel(rar){
-      return rar.toUpperCase();
-    }
-
-    function addLogItem(rar, card){
-      const chip = document.createElement("div");
-      chip.className = `chip ${rar}`;
-      chip.textContent = `${rar.toUpperCase()} · ${card.teamAbbr} · ${card.name}`;
-      els.log.prepend(chip);
-      // 너무 길어지면 자르기
-      while(els.log.children.length > 12){
-        els.log.removeChild(els.log.lastChild);
-      }
-    }
-
-    function applyRarityClass(rar){
-      els.cardWrap.classList.remove("silver","gold","coral","opal","show");
-      els.cardWrap.classList.add(rar);
-      els.rarityBadge.textContent = rarityLabel(rar);
-    }
-
-    function showPreludeIfNeeded(draw){
-      const { rar, card } = draw;
-      const needsPrelude = (rar === "coral" || rar === "opal");
-      if(!needsPrelude) return Promise.resolve();
-
-      // 로고/포지션/등급 텍스트 세팅
-      els.preludeLogo.src = card.logo || "";
-      els.preludeLogo.onerror = () => { els.preludeLogo.src = ""; };
-      els.preludePos.textContent = card.pos || "";
-      els.preludeRar.textContent = rarityLabel(rar);
-      els.preludeRar.className = "rarText " + rar;
-
-      flashColor(rar);
-      els.prelude.classList.remove("show");
-      void els.prelude.offsetWidth;
-      els.prelude.classList.add("show");
-
-      return new Promise((resolve) => {
-        // 프렐류드 애니메이션 길이(980ms) + 약간 버퍼
-        setTimeout(resolve, 980);
-      });
-    }
-
     async function revealNext(){
-      if(!started) return;
-      if(revealing) return;
+      if(!started || revealing) return;
+
       if(queue.length === 0){
-        els.hint.textContent = "끝! 다시 뽑을 수 있어.";
+        els.hint.textContent = "끝! 다시 팩을 열 수 있어.";
         els.subHint.textContent = "";
         els.clickCatcher.classList.add("off");
         setStatus("완료");
         setBusy(false);
         started = false;
+        hideGhost();
         return;
       }
 
       revealing = true;
       const draw = queue.shift();
 
-      // 코랄/오팔이면 로고/포지션/등급 → 카드
+      hideGhost();
+
       await showPreludeIfNeeded(draw);
 
-      // 카드 보여주기
-      clearCard();
-      applyRarityClass(draw.rar);
+      applyRarity(draw.rar);
 
-      // 카드 이미지 세팅
       els.cardImg.src = draw.card.img;
       els.cardImg.onerror = () => {
-        // 파일이 없을 때도 연출이 깨지지 않게 (대체 배경)
         els.cardImg.removeAttribute("src");
-        els.cardImg.style.background =
-          "linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.02))";
+        els.cardImg.style.background = "linear-gradient(135deg, rgba(255,255,255,.10), rgba(255,255,255,.02))";
       };
 
       flashColor(draw.rar);
+      playScanIfNeeded(draw.rar);
 
-      // 등장 애니메이션
       void els.cardWrap.offsetWidth;
       els.cardWrap.classList.add("show");
 
-      // 하단 로그
       addLogItem(draw.rar, draw.card);
 
-      // 안내
       const left = queue.length;
       els.subHint.textContent = left > 0 ? `남은 카드: ${left}장 (클릭)` : "마지막 카드! (클릭해서 종료)";
       setStatus(`공개 중 (${left} 남음)`);
 
-      // 짧은 잠금(연타 방지)
-      setTimeout(() => { revealing = false; }, 260);
+      if(left > 0) setTimeout(()=> showGhost(queue[0]), 120);
+
+      setTimeout(()=> { revealing = false; }, 260);
     }
 
-    function startDraw(n){
-      if(cardPool.length === 0){
-        alert("cardPool에 카드가 없습니다. index.html의 cardPool 배열에 카드 정보를 추가하세요.");
+    function startPack(){
+      if(CARD_POOL.length === 0){
+        alert("CARD_POOL에 카드가 없습니다.");
         return;
       }
-      setBusy(true);
-      clearCard();
-      els.log.innerHTML = "";
-      queue = generateDraws(n);
+      for(const c of CARD_POOL){
+        if(!c.rarity || !(c.rarity in RARITY_WEIGHT)){
+          alert(`CARD_POOL의 카드 "${c.name}"에 rarity가 없거나(RARITY_WEIGHT에 없는 값)입니다: ${c.rarity}`);
+          return;
+        }
+      }
+
+      clearStage();
+      queue = generatePack5();
+
       started = false;
       revealing = false;
 
       els.clickCatcher.classList.add("off");
-      setStatus(n === 10 ? "10장 준비" : "1장 준비");
-      els.hint.textContent = n === 10 ? "10장 뽑기: 팩 등장" : "1장 뽑기: 팩 등장";
+      setBusy(true);
+      setStatus("5장 준비");
+      els.hint.textContent = "팩 등장";
       els.subHint.textContent = "";
 
-      showPackThenStartReveal();
+      showPackThenEnableClicks();
     }
 
-    // ===============================
-    // events
-    // ===============================
-    els.btn1.addEventListener("click", () => startDraw(1));
-    els.btn10.addEventListener("click", () => startDraw(10));
+    els.btnPack.addEventListener("click", startPack);
     els.clickCatcher.addEventListener("click", revealNext);
 
-    // 처음 상태
-    clearCard();
     setStatus("대기 중");
   </script>
 </body>
