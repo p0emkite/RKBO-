@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Card Gacha (Com2us-style)</title>
+  <style>
+    :root{
+      --bg:#0b1020;
+      --panel:#0f1730;
+      --text:#e9eeff;
+      --muted:#94a3b8;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial;
+      background: radial-gradient(1200px 700px at 20% 10%, #18224a 0%, var(--bg) 55%);
+      color:var(--text);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px;
+    }
+    .app{
+      width:min(980px, 100%);
+      background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.02));
+      border:1px solid rgba(255,255,255,0.12);
+      border-radius:18px;
+      padding:18px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+    }
+    header{
+      display:flex;
+      gap:12px;
+      align-items:flex-start;
+      justify-content:space-between;
+      margin-bottom:14px;
+    }
+    h1{
+      font-size:18px;
+      margin:0;
+      letter-spacing:0.2px;
+    }
+    .sub{
+      margin-top:6px;
+      font-size:13px;
+      color:var(--muted);
+      line-height:1.35;
+    }
+    .controls{
+      display:flex;
+      gap:10px;
+      align-items:center;
+      flex-wrap:wrap;
+      justify-content:flex-end;
+    }
+    button{
+      appearance:none;
+      border:1px solid rgba(255,255,255,0.16);
+      background: rgba(255,255,255,0.06);
+      color:var(--text);
+      padding:10px 12px;
+      border-radius:12px;
+      cursor:pointer;
+      font-weight:600;
+      letter-spacing:0.2px;
+      transition: transform .08s ease, background .12s ease, border-color .12s ease;
+    }
+    button:hover{ background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.22); }
+    button:active{ transform: translateY(1px) scale(0.99); }
+    button.secondary{
+      background: transparent;
+    }
+    .pill{
+      padding:8px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.14);
+      color:var(--muted);
+      font-size:12px;
+      background: rgba(0,0,0,0.14);
+      white-space:nowrap;
+    }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:12px;
+      padding:14px;
+      background: rgba(0,0,0,0.18);
+      border:1px solid rgba(255,255,255,0.10);
+      border-radius:16px;
+      min-height: 320px;
+    }
+    @media (max-width: 720px){
+      .grid{ grid-template-columns: repeat(2, 1fr); }
+    }
+
+    /* Card flip */
+    .card{
+      position:relative;
+      height:140px;
+      border-radius:16px;
+      perspective: 1000px;
+      cursor:pointer;
+      user-select:none;
+    }
+    .cardInner{
+      position:absolute; inset:0;
+      transform-style:preserve-3d;
+      transition: transform 560ms cubic-bezier(.2,.75,.2,1);
+    }
+    .card.revealed .cardInner{ transform: rotateY(180deg); }
+
+    .face{
+      position:absolute; inset:0;
+      border-radius:16px;
+      backface-visibility:hidden;
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      align-items:center;
+      padding:12px;
+      border:1px solid rgba(255,255,255,0.14);
+      background: rgba(255,255,255,0.06);
+      overflow:hidden;
+    }
+    .back{
+      background:
+        radial-gradient(140px 120px at 30% 20%, rgba(255,255,255,0.12), rgba(255,255,255,0.03)),
+        linear-gradient(135deg, rgba(99,102,241,0.20), rgba(16,185,129,0.12));
+    }
+    .front{
+      transform: rotateY(180deg);
+      background:
+        radial-gradient(180px 140px at 30% 20%, rgba(255,255,255,0.14), rgba(255,255,255,0.04)),
+        linear-gradient(180deg, rgba(0,0,0,0.18), rgba(0,0,0,0.35));
+    }
+    .back .logo{
+      font-weight:900;
+      letter-spacing:1px;
+      font-size:18px;
+      opacity:.9;
+    }
+    .back .hint{
+      margin-top:6px;
+      font-size:12px;
+      color:rgba(233,238,255,0.75);
+    }
+
+    .rarity{
+      font-size:12px;
+      font-weight:900;
+      letter-spacing:0.8px;
+      opacity:.92;
+      padding:6px 10px;
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,0.18);
+      background: rgba(0,0,0,0.24);
+      margin-bottom:10px;
+    }
+    .name{ font-size:16px; font-weight:900; text-align:center; }
+    .meta{ margin-top:6px; font-size:12px; color:var(--muted); text-align:center; line-height:1.25; }
+
+    /* Simple rarity glow */
+    .card[data-r="B"] .front{ box-shadow:none; }
+    .card[data-r="A"] .front{ box-shadow: 0 0 0 1px rgba(255,255,255,0.10); }
+    .card[data-r="S"] .front{ box-shadow: 0 0 18px rgba(59,130,246,0.35); }
+    .card[data-r="SS"] .front{ box-shadow: 0 0 22px rgba(168,85,247,0.40); }
+    .card[data-r="L"] .front{
+      box-shadow: 0 0 28px rgba(245,158,11,0.55), 0 0 0 1px rgba(245,158,11,0.22);
+    }
+    /* 작은 번쩍 */
+    .spark{
+      position:absolute;
+      inset:-40%;
+      background: linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.16) 50%, transparent 70%);
+      transform: translateX(-60%) rotate(10deg);
+      animation: none;
+      pointer-events:none;
+    }
+    .card.revealed[data-r="L"] .spark,
+    .card.revealed[data-r="SS"] .spark{
+      animation: sweep 900ms ease-out 1;
+    }
+    @keyframes sweep{
+      from{ transform: translateX(-70%) rotate(10deg); opacity: 0; }
+      10%{ opacity: 1; }
+      to{ transform: translateX(70%) rotate(10deg); opacity: 0; }
+    }
+
+    .footer{
+      display:flex;
+      gap:10px;
+      justify-content:space-between;
+      align-items:center;
+      margin-top:12px;
+      flex-wrap:wrap;
+    }
+    .log{
+      font-size:12px;
+      color:var(--muted);
+      line-height:1.4;
+    }
+    .log b{ color: var(--text); }
+
+    .toast{
+      margin-left:auto;
+      font-size:12px;
+      color:rgba(233,238,255,0.92);
+      padding:8px 10px;
+      border:1px solid rgba(255,255,255,0.14);
+      border-radius:12px;
+      background: rgba(0,0,0,0.18);
+      display:none;
+    }
+    .toast.show{ display:block; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>심플 카드팩 뽑기 (10연)</h1>
+        <div class="sub">
+          - 확률: B 70% / A 22% / S 6.5% / SS 1.3% / L 0.2%<br>
+          - 10연은 <b>A+</b> 1장 보장 (나머지는 확률대로)
+        </div>
+      </div>
+      <div class="controls">
+        <span class="pill" id="statsPill">Ready</span>
+        <button id="pull1">1장 뽑기</button>
+        <button id="pull10">10연 뽑기</button>
+        <button class="secondary" id="revealAll">전부 공개</button>
+        <button class="secondary" id="clear">초기화</button>
+      </div>
+    </header>
+
+    <div class="grid" id="grid"></div>
+
+    <div class="footer">
+      <div class="log" id="log">
+        마지막 결과: <b>-</b>
+      </div>
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+<script>
+  // ====== 1) 카드 데이터(예시) ======
+  const players = [
+    { name: "구자욱", team: "삼성", pos: "OF" },
+    { name: "원태인", team: "삼성", pos: "SP" },
+    { name: "강민호", team: "삼성", pos: "C" },
+    { name: "이재현", team: "삼성", pos: "SS" },
+    { name: "김지찬", team: "삼성", pos: "2B" },
+    { name: "박병호", team: "삼성", pos: "1B" },
+    { name: "오승환", team: "삼성", pos: "CP" },
+    { name: "김현준", team: "삼성", pos: "OF" },
+    { name: "피렐라", team: "삼성", pos: "OF" },
+    { name: "뷰캐넌", team: "삼성", pos: "SP" },
+    { name: "이승엽", team: "삼성", pos: "1B" },
+    { name: "양준혁", team: "삼성", pos: "OF" }
+  ];
+
+  // ====== 2) 확률 테이블 ======
+  // (컴프야 느낌용 예시 확률: 합 100%)
+  const rarityTable = [
+    { r: "B", p: 70.0 },
+    { r: "A", p: 22.0 },
+    { r: "S", p: 6.5 },
+    { r: "SS", p: 1.3 },
+    { r: "L", p: 0.2 }
+  ];
+
+  // 보장: 10연에 최소 A 이상 1장
+  const GUARANTEE_MIN = "A";
+  const rarityRank = { "B": 1, "A": 2, "S": 3, "SS": 4, "L": 5 };
+
+  // ====== Utilities ======
+  const $ = (sel) => document.querySelector(sel);
+  const grid = $("#grid");
+  const logEl = $("#log");
+  const toast = $("#toast");
+  const statsPill = $("#statsPill");
+
+  function showToast(msg){
+    toast.textContent = msg;
+    toast.classList.add("show");
+    clearTimeout(showToast._t);
+    showToast._t = setTimeout(()=>toast.classList.remove("show"), 1400);
+  }
+
+  function randChoice(arr){
+    return arr[Math.floor(Math.random() * arr.length)];
+  }
+
+  function rollRarity(minR = null){
+    // minR이 있으면 그 이상만 나오도록
+    while(true){
+      const x = Math.random() * 100;
+      let acc = 0;
+      for(const row of rarityTable){
+        acc += row.p;
+        if(x <= acc){
+          if(!minR) return row.r;
+          if(rarityRank[row.r] >= rarityRank[minR]) return row.r;
+          break;
+        }
+      }
+    }
+  }
+
+  function makeCardData(minR = null){
+    const rarity = rollRarity(minR);
+    const p = randChoice(players);
+    // OVR은 등급별로 대충 범위만
+    const base = { B: 68, A: 76, S: 84, SS: 90, L: 95 }[rarity];
+    const ovr = base + Math.floor(Math.random() * 5);
+    return { rarity, ...p, ovr };
+  }
+
+  function ensureGuarantee(cards){
+    // 10연에서 A+가 하나도 없으면, 랜덤 1장을 A+로 재롤
+    const hasAPlus = cards.some(c => rarityRank[c.rarity] >= rarityRank[GUARANTEE_MIN]);
+    if(hasAPlus) return cards;
+    const idx = Math.floor(Math.random() * cards.length);
+    cards[idx] = makeCardData(GUARANTEE_MIN);
+    return cards;
+  }
+
+  // ====== UI Rendering ======
+  function cardElement(card, index){
+    const el = document.createElement("div");
+    el.className = "card";
+    el.dataset.r = card.rarity;
+    el.dataset.idx = String(index);
+
+    el.innerHTML = `
+      <div class="cardInner">
+        <div class="face back">
+          <div class="logo">CARD PACK</div>
+          <div class="hint">클릭해서 공개</div>
+        </div>
+        <div class="face front">
+          <div class="spark"></div>
+          <div class="rarity">${card.rarity}</div>
+          <div class="name">${card.name}</div>
+          <div class="meta">${card.team} · ${card.pos}<br>OVR ${card.ovr}</div>
+        </div>
+      </div>
+    `;
+
+    el.addEventListener("click", () => {
+      if(el.classList.contains("revealed")) return;
+      el.classList.add("revealed");
+      // 레어 연출 느낌(간단)
+      if(card.rarity === "L") showToast("💥 레전드!");
+      else if(card.rarity === "SS") showToast("✨ SS!");
+      else if(card.rarity === "S") showToast("⭐ S!");
+      updateStats();
+    });
+
+    return el;
+  }
+
+  let currentCards = [];
+
+  function render(cards){
+    grid.innerHTML = "";
+    currentCards = cards;
+    cards.forEach((c, i) => grid.appendChild(cardElement(c, i)));
+    updateLog(cards);
+    updateStats();
+  }
+
+  function updateLog(cards){
+    const summary = cards
+      .map(c => c.rarity)
+      .reduce((m, r) => (m[r] = (m[r]||0)+1, m), {});
+    const order = ["L","SS","S","A","B"];
+    const txt = order.filter(k=>summary[k]).map(k=>`${k}×${summary[k]}`).join("  ");
+    logEl.innerHTML = `마지막 결과: <b>${txt || "-"}</b>`;
+  }
+
+  function updateStats(){
+    const revealed = [...document.querySelectorAll(".card.revealed")].length;
+    const total = [...document.querySelectorAll(".card")].length;
+    if(total === 0){
+      statsPill.textContent = "Ready";
+      return;
+    }
+    statsPill.textContent = `공개 ${revealed}/${total}`;
+  }
+
+  // ====== Actions ======
+  function pull(n){
+    const cards = Array.from({length:n}, () => makeCardData(null));
+    if(n === 10) ensureGuarantee(cards);
+    render(cards);
+  }
+
+  $("#pull1").addEventListener("click", () => pull(1));
+  $("#pull10").addEventListener("click", () => pull(10));
+
+  $("#revealAll").addEventListener("click", () => {
+    document.querySelectorAll(".card").forEach(el => el.classList.add("revealed"));
+    // 전부 공개하면 최고 등급 안내만 한번
+    const best = currentCards.reduce((a,c)=> rarityRank[c.rarity] > rarityRank[a] ? c.rarity : a, "B");
+    if(best === "L") showToast("💥 레전드 포함!");
+    else if(best === "SS") showToast("✨ SS 포함!");
+    else if(best === "S") showToast("⭐ S 포함!");
+    updateStats();
+  });
+
+  $("#clear").addEventListener("click", () => {
+    grid.innerHTML = "";
+    currentCards = [];
+    logEl.innerHTML = `마지막 결과: <b>-</b>`;
+    updateStats();
+    showToast("초기화!");
+  });
+
+  // 첫 화면: 10연 한 번 깔아두기
+  pull(10);
+</script>
+</body>
+</html>
