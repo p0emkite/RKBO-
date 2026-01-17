@@ -8,13 +8,15 @@
     :root{
       --bg1:#06070b;
       --bg2:#0b1222;
+      --text: rgba(255,255,255,.92);
       --muted: rgba(255,255,255,.65);
-      --coralText:#ff7fa0;
 
       --silverGlow: rgba(190,206,220,.22);
       --goldGlow: rgba(255,211,107,.25);
       --coralGlow: rgba(255,127,160,.28);
       --opalGlow: rgba(159,243,255,.22);
+
+      --coralText:#ff7fa0;
     }
 
     *{box-sizing:border-box}
@@ -23,6 +25,7 @@
       margin:0;
       overflow:hidden;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif;
+      color: var(--text);
       background:
         radial-gradient(1200px 700px at 60% -10%, rgba(120,160,255,.18), transparent 60%),
         radial-gradient(900px 700px at 85% 10%, rgba(255,120,210,.12), transparent 62%),
@@ -38,11 +41,21 @@
     #flash.play{ animation: flashPop 520ms ease-out forwards; }
     @keyframes flashPop{ 0%{opacity:0} 15%{opacity:.85} 100%{opacity:0} }
 
+    /* fullscreen stage centered */
     .stage{
       position:fixed; inset:0;
       display:grid;
       place-items:center;
     }
+
+    /* click catcher after open (reveals next card) */
+    .clickCatcher{
+      position:fixed; inset:0;
+      z-index:30;
+      cursor:pointer;
+      display:none;
+    }
+    .clickCatcher.on{ display:block; }
 
     /* pack */
     .packCard{
@@ -51,9 +64,10 @@
       display:grid; place-items:center;
       filter: drop-shadow(0 26px 32px rgba(0,0,0,.55));
       cursor:pointer;
-      position:relative;
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%,-50%);
       z-index:10;
-      transform: translateY(0) scale(1);
       opacity:1;
     }
     .packCard img{width:100%;height:100%;object-fit:contain;display:block;}
@@ -63,82 +77,78 @@
       animation: packDropFade 980ms cubic-bezier(.2,.85,.2,1) forwards;
     }
     @keyframes packDropFade{
-      0%{transform: translateY(0) scale(1); opacity:1}
-      70%{transform: translateY(220px) scale(.985); opacity:.35}
-      100%{transform: translateY(320px) scale(.97); opacity:0}
+      0%{transform: translate(-50%,-50%) translateY(0) scale(1); opacity:1}
+      70%{transform: translate(-50%,-50%) translateY(220px) scale(.985); opacity:.35}
+      100%{transform: translate(-50%,-50%) translateY(320px) scale(.97); opacity:0}
     }
 
-    /* click catcher after open */
-    .clickCatcher{
-      position:fixed; inset:0;
-      z-index:20;
-      cursor:pointer;
-      display:none;
-    }
-    .clickCatcher.on{ display:block; }
-
-    /* reveal slot */
+    /* reveal slot (same center as pack) */
     .slot{
       width:min(520px, 86vw);
       aspect-ratio: 2.3/3;
-      position:relative;
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%,-50%);
       display:grid;
       place-items:center;
-      z-index:5;
+      z-index:20;
+      pointer-events:none; /* 클릭은 catcher가 */
     }
 
-    /* ghost (card inside pack) */
-    .ghost{
-      position:absolute;
-      width:92%;
-      height:92%;
-      border-radius:22px;
-      overflow:hidden;
-      opacity:0;
-      transform: scale(.98);
-      filter: blur(.2px) saturate(.9);
-      z-index:1;
-      pointer-events:none;
-    }
-    .ghost.show{opacity:.22; transition: opacity 180ms ease;}
-    .ghost img{width:100%;height:100%;object-fit:cover;display:block;}
-    .ghost::after{
-      content:"";
-      position:absolute; inset:0;
-      background:
-        linear-gradient(90deg, rgba(255,255,255,.06), rgba(255,255,255,0) 28%, rgba(255,255,255,.08) 55%, rgba(255,255,255,0) 80%),
-        radial-gradient(circle at 30% 20%, rgba(255,255,255,.10), transparent 55%);
-      mix-blend-mode: screen;
-      opacity:.9;
-    }
-
-    /* prelude (coral/opal only) */
+    /* prelude (coral/opal only) sequential: logo -> pos -> rarity -> card */
     .prelude{
       position:absolute; inset:0;
       display:grid; place-items:center;
-      opacity:0; pointer-events:none; z-index:6;
+      pointer-events:none;
+      z-index:50;
+      opacity:0;
     }
-    .prelude.show{ animation: preludePop 980ms ease-out forwards; }
-    @keyframes preludePop{
-      0%{opacity:0; transform: scale(.96)}
-      20%{opacity:1; transform: scale(1)}
-      70%{opacity:1}
-      100%{opacity:0; transform: scale(1.02)}
-    }
+    .prelude.show{ opacity:1; }
+
     .preludeBox{
       width:min(420px, 80vw);
       border-radius:18px;
-      padding:18px 16px 16px;
+      padding:20px 18px 18px;
       background: rgba(0,0,0,.45);
       border:1px solid rgba(255,255,255,.14);
       box-shadow: 0 18px 55px rgba(0,0,0,.45);
       backdrop-filter: blur(10px);
       text-align:center;
-      display:flex; flex-direction:column; align-items:center; gap:10px;
+      display:flex; flex-direction:column; align-items:center; gap:12px;
     }
-    .teamLogo{ width:64px; height:64px; object-fit:contain; filter: drop-shadow(0 10px 18px rgba(0,0,0,.35)); }
-    .posText{ font-weight:1000; letter-spacing:2px; font-size:22px; line-height:1; color:rgba(255,255,255,.92); }
-    .rarText{ font-weight:1000; letter-spacing:2px; font-size:20px; line-height:1; text-transform: uppercase; }
+
+    .step{
+      display:none;
+      opacity:0;
+      transform: translateY(8px) scale(.98);
+    }
+    .step.on{
+      display:block;
+      animation: stepIn 420ms cubic-bezier(.2,.9,.2,1) forwards;
+    }
+    @keyframes stepIn{
+      0%{opacity:0; transform: translateY(10px) scale(.98)}
+      100%{opacity:1; transform: translateY(0) scale(1)}
+    }
+
+    .teamLogo{
+      width:72px; height:72px;
+      object-fit:contain;
+      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+    }
+    .posText{
+      font-weight:1000;
+      letter-spacing:3px;
+      font-size:26px;
+      line-height:1;
+    }
+    .rarText{
+      font-weight:1000;
+      letter-spacing:3px;
+      font-size:24px;
+      line-height:1;
+      text-transform: uppercase;
+    }
     .rarText.coral{ color: var(--coralText); text-shadow: 0 0 18px rgba(255,127,160,.45); }
     .rarText.opal{
       background: linear-gradient(90deg, rgba(255,182,255,.9), rgba(159,243,255,.9), rgba(255,240,120,.9), rgba(255,182,255,.9));
@@ -155,7 +165,8 @@
       transform: scale(.90);
       opacity:0;
       filter: drop-shadow(0 26px 34px rgba(0,0,0,.55));
-      z-index:4;
+      z-index:40;
+      pointer-events:none;
     }
     .cardWrap.show{ animation: cardIn 520ms cubic-bezier(.2,.9,.2,1) forwards; }
     @keyframes cardIn{
@@ -214,7 +225,7 @@
       inset:-20%;
       opacity:0;
       pointer-events:none;
-      z-index:7;
+      z-index:70;
       mix-blend-mode: screen;
       filter: blur(.2px);
     }
@@ -240,27 +251,136 @@
           rgba(255,255,255,0));
     }
 
-    /* tiny debug (hidden by default) */
-    .debug{
-      position:fixed; left:14px; bottom:12px; z-index:1000;
-      color:rgba(255,255,255,.55);
-      font-size:12px;
+    /* RESULT MODAL */
+    .modal{
+      position:fixed; inset:0;
       display:none;
+      place-items:center;
+      z-index:2000;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
     }
+    .modal.on{ display:grid; }
+
+    .panel{
+      width:min(980px, 92vw);
+      border-radius:22px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,12,18,.72);
+      box-shadow: 0 24px 80px rgba(0,0,0,.55);
+      padding:18px 16px 16px;
+    }
+    .panelTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .panelTitle{
+      font-weight:1000;
+      letter-spacing:.3px;
+      font-size:16px;
+    }
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 14px;
+      font-weight:1000;
+      cursor:pointer;
+      letter-spacing:.2px;
+      transition: transform .08s ease, border-color .2s ease;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:hover{ border-color: rgba(255,255,255,.28); }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap:12px;
+    }
+    @media (max-width:980px){
+      .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .thumb{
+      aspect-ratio: 2.3/3;
+      border-radius:18px;
+      overflow:hidden;
+      position:relative;
+      background: rgba(255,255,255,.05);
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.45));
+    }
+    .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+
+    .thumb::before{
+      content:"";
+      position:absolute; inset:-2px;
+      border-radius:20px;
+      padding:2px;
+      background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,0));
+      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+      pointer-events:none;
+      opacity:.9;
+    }
+
+    .thumb.silver{ box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 18px var(--silverGlow), 0 0 46px rgba(190,206,220,.12); }
+    .thumb.gold{   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 22px var(--goldGlow),   0 0 64px rgba(255,211,107,.16); }
+    .thumb.coral{  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 0 26px var(--coralGlow),  0 0 84px rgba(255,80,125,.18); }
+    .thumb.opal{   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 30px var(--opalGlow),   0 0 100px rgba(255,182,255,.18); }
+
+    /* hidden capture sheet for saving */
+    #capture{
+      position:fixed;
+      left:-99999px; top:-99999px;
+      width:1000px;
+      background: transparent;
+      padding:0;
+    }
+    .capWrap{
+      width:1000px;
+      padding:22px;
+      border-radius:24px;
+      background:
+        radial-gradient(1200px 700px at 60% -10%, rgba(120,160,255,.18), transparent 60%),
+        radial-gradient(900px 700px at 85% 10%, rgba(255,120,210,.12), transparent 62%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      color: var(--text);
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif;
+    }
+    .capTitle{
+      font-weight:1000;
+      margin:0 0 14px;
+      letter-spacing:.3px;
+      font-size:18px;
+    }
+    .capGrid{
+      display:grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap:12px;
+    }
+    .capGrid .thumb{ filter:none; } /* 캡쳐는 깔끔하게 */
   </style>
 </head>
 <body>
   <div id="flash"></div>
 
   <div class="stage">
-    <div class="slot">
-      <div class="ghost" id="ghost"><img id="ghostImg" alt="ghost"></div>
-
+    <!-- reveal slot -->
+    <div class="slot" aria-hidden="true">
       <div class="prelude" id="prelude">
         <div class="preludeBox">
-          <img class="teamLogo" id="preludeLogo" alt="logo" />
-          <div class="posText" id="preludePos">SP</div>
-          <div class="rarText" id="preludeRar">CORAL</div>
+          <img class="teamLogo step" id="stepLogo" alt="logo" />
+          <div class="posText step" id="stepPos">SP</div>
+          <div class="rarText step" id="stepRar">CORAL</div>
         </div>
       </div>
 
@@ -270,24 +390,45 @@
       </div>
     </div>
 
-    <!-- 시작 화면: 오직 pack.png만 -->
+    <!-- start screen: only pack -->
     <div class="packCard" id="packCard" title="클릭해서 팩 오픈">
       <img src="pack.png" alt="pack" />
     </div>
 
     <div class="clickCatcher" id="clickCatcher"></div>
-    <div class="debug" id="debug"></div>
+  </div>
+
+  <!-- Result Modal -->
+  <div class="modal" id="modal">
+    <div class="panel">
+      <div class="panelTop">
+        <div class="panelTitle">결과</div>
+        <div class="btns">
+          <button class="btn" id="btnSave">결과 저장하기 (이미지)</button>
+          <button class="btn" id="btnRetry">다시 뽑기</button>
+        </div>
+      </div>
+      <div class="grid" id="resultGrid"></div>
+    </div>
+  </div>
+
+  <!-- Capture sheet (for image saving) -->
+  <div id="capture">
+    <div class="capWrap" id="capWrap">
+      <div class="capTitle">Pack Result</div>
+      <div class="capGrid" id="capGrid"></div>
+    </div>
   </div>
 
   <script>
     // ===============================
-    // 1 카드 = 1 등급(고정)
+    // CONFIG
     // ===============================
     const SEASON = "57";
     const RARITY_WEIGHT = { silver:86, gold:10, coral:3, opal:1 };
 
-    // ✅ 지금 테스트: 코랄 TSUKI 1장만 풀에 있음
-    // (카드를 늘리면 자연스럽게 확률대로 섞임)
+    // 테스트: 너가 지금 가진 코랄 TSUKI 1개만
+    // 나중에 카드 늘리면 여기 엔트리만 추가하면 됨.
     const CARD_POOL = [
       {
         rarity:"coral",
@@ -300,33 +441,41 @@
     ];
 
     // ===============================
-    // helpers
+    // STATE
     // ===============================
     const $ = (id)=>document.getElementById(id);
-
     const els = {
       flash: $("flash"),
       packCard: $("packCard"),
       clickCatcher: $("clickCatcher"),
-      ghost: $("ghost"),
-      ghostImg: $("ghostImg"),
+
       prelude: $("prelude"),
-      preludeLogo: $("preludeLogo"),
-      preludePos: $("preludePos"),
-      preludeRar: $("preludeRar"),
+      stepLogo: $("stepLogo"),
+      stepPos: $("stepPos"),
+      stepRar: $("stepRar"),
+
       cardWrap: $("cardWrap"),
       cardImg: $("cardImg"),
       scan: $("scan"),
-      debug: $("debug"),
+
+      modal: $("modal"),
+      resultGrid: $("resultGrid"),
+      btnSave: $("btnSave"),
+      btnRetry: $("btnRetry"),
+
+      capGrid: $("capGrid"),
+      capWrap: $("capWrap")
     };
 
     let queue = [];
     let opened = false;
     let revealing = false;
+    let openedResults = []; // {rar, card} in order
 
-    function normRarity(r){
-      return String(r || "").trim().toLowerCase();
-    }
+    // ===============================
+    // HELPERS
+    // ===============================
+    function normRarity(r){ return String(r || "").trim().toLowerCase(); }
 
     function pickWeightedCard(){
       const list = CARD_POOL.map(c => ({
@@ -368,16 +517,6 @@
       els.flash.classList.add("play");
     }
 
-    function showGhost(draw){
-      els.ghostImg.src = draw.card.img;
-      els.ghostImg.onerror = () => {
-        console.error("[IMG 404] ghostImg:", draw.card.img);
-        els.ghostImg.removeAttribute("src");
-      };
-      els.ghost.classList.add("show");
-    }
-    function hideGhost(){ els.ghost.classList.remove("show"); }
-
     function applyRarity(rar){
       els.cardWrap.classList.remove("silver","gold","coral","opal","show");
       els.cardWrap.classList.add(rar);
@@ -390,118 +529,240 @@
       els.scan.classList.add("play");
     }
 
-    function showPreludeIfNeeded(draw){
+    function resetRevealVisual(){
+      // hide prelude
+      els.prelude.classList.remove("show");
+      [els.stepLogo, els.stepPos, els.stepRar].forEach(el=>{
+        el.classList.remove("on");
+        el.style.display = "none";
+      });
+
+      // hide card
+      els.cardWrap.classList.remove("show","silver","gold","coral","opal");
+      els.cardImg.removeAttribute("src");
+
+      // scan reset
+      els.scan.classList.remove("play");
+    }
+
+    // ===== Prelude sequence (logo only -> pos only -> rar only) =====
+    function showPreludeSequence(draw){
       const rar = draw.rar;
       if(rar !== "coral" && rar !== "opal") return Promise.resolve();
 
-      els.preludeLogo.src = draw.card.logo || "";
-      els.preludeLogo.onerror = () => {
-        console.error("[IMG 404] logo:", draw.card.logo);
-        els.preludeLogo.removeAttribute("src");
-      };
-      els.preludePos.textContent = draw.card.pos || "";
-      els.preludeRar.textContent = rar.toUpperCase();
-      els.preludeRar.className = "rarText " + rar;
-
-      flashColor(rar);
-
-      els.prelude.classList.remove("show");
-      void els.prelude.offsetWidth;
       els.prelude.classList.add("show");
 
-      return new Promise(res => setTimeout(res, 980));
+      // set contents
+      els.stepLogo.src = draw.card.logo || "";
+      els.stepLogo.onerror = ()=> els.stepLogo.removeAttribute("src");
+      els.stepPos.textContent = draw.card.pos || "";
+      els.stepRar.textContent = rar.toUpperCase();
+      els.stepRar.className = "rarText step " + rar;
+
+      const showStep = (el, ms=520) => new Promise(res=>{
+        // hide all steps first
+        [els.stepLogo, els.stepPos, els.stepRar].forEach(x=>{
+          x.classList.remove("on");
+          x.style.display = "none";
+        });
+        el.style.display = "block";
+        el.classList.add("on");
+        setTimeout(res, ms);
+      });
+
+      // color flash on each step 느낌
+      return (async ()=>{
+        flashColor(rar);
+        await showStep(els.stepLogo, 520);
+        flashColor(rar);
+        await showStep(els.stepPos, 520);
+        flashColor(rar);
+        await showStep(els.stepRar, 620);
+
+        // fade out prelude quickly
+        els.prelude.classList.remove("show");
+      })();
+    }
+
+    // ===============================
+    // FLOW
+    // ===============================
+    function openPack(){
+      if(opened) return;
+
+      // init
+      openedResults = [];
+      queue = generatePack5();
+      opened = false;
+      revealing = false;
+      resetRevealVisual();
+
+      // pack open animation
+      els.packCard.classList.add("opening");
+      els.packCard.style.cursor = "default";
+
+      const onEnd = () => {
+        els.packCard.removeEventListener("animationend", onEnd);
+        els.packCard.style.display = "none";
+        els.clickCatcher.classList.add("on");
+        opened = true;
+      };
+      els.packCard.addEventListener("animationend", onEnd);
     }
 
     async function revealNext(){
       if(!opened || revealing) return;
 
       if(queue.length === 0){
-        // 끝나면 다시 팩 보이게 리셋
+        // finished: show result modal
         opened = false;
         revealing = false;
         els.clickCatcher.classList.remove("on");
-
-        els.cardWrap.classList.remove("show","silver","gold","coral","opal");
-        els.cardImg.removeAttribute("src");
-        hideGhost();
-
-        // pack 다시 표시
-        els.packCard.style.display = "grid";
-        els.packCard.classList.remove("opening");
-        els.packCard.style.opacity = 1;
-
+        showResults();
         return;
       }
 
       revealing = true;
+      resetRevealVisual();
+
       const draw = queue.shift();
+      openedResults.push(draw);
 
-      hideGhost();
-      await showPreludeIfNeeded(draw);
+      const rar = draw.rar;
 
-      applyRarity(draw.rar);
+      // For coral/opal: do prelude first (logo -> pos -> rar), then card
+      if(rar === "coral" || rar === "opal"){
+        await showPreludeSequence(draw);
+      }
 
+      // card appears
+      applyRarity(rar);
       els.cardImg.src = draw.card.img;
-      els.cardImg.onerror = () => {
-        console.error("[IMG 404] cardImg:", draw.card.img);
-        els.cardImg.removeAttribute("src");
-      };
+      els.cardImg.onerror = () => els.cardImg.removeAttribute("src");
 
-      flashColor(draw.rar);
-      playScanIfNeeded(draw.rar);
+      flashColor(rar);
+      playScanIfNeeded(rar);
 
       els.cardWrap.classList.remove("show");
       void els.cardWrap.offsetWidth;
       els.cardWrap.classList.add("show");
 
-      // 다음 카드가 남아있으면 비쳐보이게
-      if(queue.length > 0){
-        setTimeout(()=> showGhost(queue[0]), 120);
-      }
-
-      setTimeout(()=> { revealing = false; }, 260);
+      setTimeout(()=>{ revealing = false; }, 260);
     }
 
-    function openPack(){
-      if(opened) return;
+    // ===============================
+    // RESULT MODAL
+    // ===============================
+    function buildThumb(draw){
+      const d = document.createElement("div");
+      d.className = `thumb ${draw.rar}`;
+      const img = document.createElement("img");
+      img.src = draw.card.img;
+      img.alt = `${draw.rar} ${draw.card.teamAbbr} ${draw.card.name}`;
+      d.appendChild(img);
+      return d;
+    }
 
-      // 시작 시점에 파일 경로 오류를 바로 잡기 쉽게 콘솔 로그
-      // (F12 > Console)
-      queue = generatePack5();
+    function showResults(){
+      // grid on modal
+      els.resultGrid.innerHTML = "";
+      openedResults.forEach(draw => els.resultGrid.appendChild(buildThumb(draw)));
+
+      // grid on capture sheet
+      els.capGrid.innerHTML = "";
+      openedResults.forEach(draw => els.capGrid.appendChild(buildThumb(draw)));
+
+      els.modal.classList.add("on");
+    }
+
+    function resetToStart(){
+      els.modal.classList.remove("on");
+      openedResults = [];
+      queue = [];
       opened = false;
       revealing = false;
 
-      // 팩 안에 첫 카드 비쳐보이게
-      if(queue.length > 0) showGhost(queue[0]);
+      resetRevealVisual();
 
-      // 팩 오픈 애니메이션
-      els.packCard.classList.add("opening");
-      els.packCard.style.cursor = "default";
+      // pack back to center
+      els.packCard.style.display = "grid";
+      els.packCard.classList.remove("opening");
+      els.packCard.style.cursor = "pointer";
+      els.packCard.style.opacity = 1;
 
-      const onEnd = () => {
-        els.packCard.removeEventListener("animationend", onEnd);
-
-        // 팩은 숨기고, 클릭으로 카드 공개 시작
-        els.packCard.style.display = "none";
-        els.clickCatcher.classList.add("on");
-        opened = true;
-      };
-
-      els.packCard.addEventListener("animationend", onEnd);
+      els.clickCatcher.classList.remove("on");
     }
 
-    // events
+    // Save result as image (no external libs)
+    async function saveResultAsImage(){
+      // html2canvas 같은 라이브러리 없이 "DOM을 이미지"는 원래 어렵다.
+      // 그래서 여기서는 "캡쳐용 영역을 SVG foreignObject로 렌더" 방식 사용.
+      // (크롬/엣지에서 잘 됨)
+
+      const node = els.capWrap;
+
+      // serialize node to SVG
+      const width = 1000;
+      const height = node.getBoundingClientRect().height;
+
+      const clone = node.cloneNode(true);
+      clone.style.width = width + "px";
+      clone.style.height = height + "px";
+
+      // wrap clone in container for serialization
+      const wrapper = document.createElement("div");
+      wrapper.appendChild(clone);
+
+      const html = new XMLSerializer().serializeToString(wrapper);
+
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+          <foreignObject width="100%" height="100%">
+            <div xmlns="http://www.w3.org/1999/xhtml">${html}</div>
+          </foreignObject>
+        </svg>
+      `;
+
+      const svgBlob = new Blob([svg], {type: "image/svg+xml;charset=utf-8"});
+      const url = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0);
+        URL.revokeObjectURL(url);
+
+        canvas.toBlob((blob)=>{
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `pack_result_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }, "image/png");
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(url);
+        alert("저장에 실패했습니다. (브라우저 제한) 필요하면 html2canvas 방식으로 바꿔줄게.");
+      };
+      img.src = url;
+    }
+
+    // ===============================
+    // EVENTS
+    // ===============================
     els.packCard.addEventListener("click", openPack);
     els.clickCatcher.addEventListener("click", revealNext);
 
-    // precheck (콘솔로 404 잡기 쉽게)
-    // pack.png 404 여부도 확인
-    (function(){
-      const img = new Image();
-      img.onload = ()=>{};
-      img.onerror = ()=> console.error("[IMG 404] pack.png (루트에 있어야 함)");
-      img.src = "pack.png";
-    })();
+    els.btnRetry.addEventListener("click", resetToStart);
+    els.btnSave.addEventListener("click", saveResultAsImage);
+
+    // start state
+    resetToStart();
   </script>
 </body>
 </html>
