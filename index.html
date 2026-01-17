@@ -9,7 +9,6 @@
       --bg1:#06070b;
       --bg2:#0b1222;
       --text: rgba(255,255,255,.92);
-      --muted: rgba(255,255,255,.65);
 
       --silverGlow: rgba(190,206,220,.22);
       --goldGlow: rgba(255,211,107,.25);
@@ -69,6 +68,7 @@
       transform: translate(-50%,-50%);
       z-index:10;
       opacity:1;
+      touch-action: manipulation;
     }
     .packCard img{width:100%;height:100%;object-fit:contain;display:block;}
 
@@ -92,74 +92,80 @@
       display:grid;
       place-items:center;
       z-index:20;
-      pointer-events:none; /* 클릭은 catcher가 */
+      pointer-events:none;
     }
 
-    /* prelude (coral/opal only) sequential: logo -> pos -> rarity -> card */
+    /* prelude (coral/opal only) sequential: logo -> pos -> rarity */
     .prelude{
       position:absolute; inset:0;
       display:grid; place-items:center;
       pointer-events:none;
-      z-index:50;
+      z-index:60;
       opacity:0;
+      transition: opacity 200ms ease;
     }
     .prelude.show{ opacity:1; }
 
-    .preludeBox{
-      width:min(420px, 80vw);
-      border-radius:18px;
-      padding:20px 18px 18px;
-      background: rgba(0,0,0,.45);
-      border:1px solid rgba(255,255,255,.14);
-      box-shadow: 0 18px 55px rgba(0,0,0,.45);
-      backdrop-filter: blur(10px);
+    .preludeStack{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      transform: translateY(-6px);
       text-align:center;
-      display:flex; flex-direction:column; align-items:center; gap:12px;
     }
 
     .step{
       display:none;
       opacity:0;
-      transform: translateY(8px) scale(.98);
+      transform: translateY(10px) scale(.98);
     }
     .step.on{
       display:block;
-      animation: stepIn 420ms cubic-bezier(.2,.9,.2,1) forwards;
+      animation: stepIn 520ms cubic-bezier(.2,.9,.2,1) forwards;
     }
     @keyframes stepIn{
-      0%{opacity:0; transform: translateY(10px) scale(.98)}
+      0%{opacity:0; transform: translateY(14px) scale(.98)}
       100%{opacity:1; transform: translateY(0) scale(1)}
     }
 
+    /* ✅ 요청: 로고는 512 원본 크기(최대 512), 반응형으로 줄어듦 */
     .teamLogo{
-      width:72px; height:72px;
+      width: min(512px, 72vw);
+      height:auto;
       object-fit:contain;
-      filter: drop-shadow(0 10px 18px rgba(0,0,0,.35));
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.45));
     }
+
+    /* ✅ 폰트 더 크게 */
     .posText{
       font-weight:1000;
-      letter-spacing:3px;
-      font-size:26px;
+      letter-spacing:6px;
+      font-size: clamp(44px, 7vw, 84px);
       line-height:1;
+      text-shadow: 0 10px 28px rgba(0,0,0,.45);
     }
     .rarText{
       font-weight:1000;
-      letter-spacing:3px;
-      font-size:24px;
+      letter-spacing:6px;
+      font-size: clamp(40px, 6.5vw, 76px);
       line-height:1;
       text-transform: uppercase;
+      text-shadow: 0 10px 28px rgba(0,0,0,.45);
     }
-    .rarText.coral{ color: var(--coralText); text-shadow: 0 0 18px rgba(255,127,160,.45); }
+    .rarText.coral{ color: var(--coralText); text-shadow: 0 0 22px rgba(255,127,160,.55), 0 10px 28px rgba(0,0,0,.45); }
     .rarText.opal{
-      background: linear-gradient(90deg, rgba(255,182,255,.9), rgba(159,243,255,.9), rgba(255,240,120,.9), rgba(255,182,255,.9));
+      background: linear-gradient(90deg, rgba(255,182,255,.95), rgba(159,243,255,.95), rgba(255,240,120,.95), rgba(255,182,255,.95));
       -webkit-background-clip:text; background-clip:text; color: transparent;
-      text-shadow: 0 0 18px rgba(159,243,255,.25);
+      text-shadow: 0 0 22px rgba(159,243,255,.35), 0 10px 28px rgba(0,0,0,.45);
     }
 
     /* card */
     .cardWrap{
       width:100%; height:100%;
-      border-radius:22px;
+      /* ✅ 요청: 둥근 모서리 제거 */
+      border-radius: 0;
       position:relative;
       overflow:hidden;
       transform: scale(.90);
@@ -177,7 +183,7 @@
       position:absolute; inset:0;
       width:100%; height:100%;
       object-fit:cover;
-      transform: scale(1.02);
+      transform: scale(1.001);
       background: rgba(255,255,255,.05);
     }
 
@@ -263,8 +269,8 @@
     .modal.on{ display:grid; }
 
     .panel{
-      width:min(980px, 92vw);
-      border-radius:22px;
+      width:min(1100px, 94vw);
+      border-radius:18px;
       border:1px solid rgba(255,255,255,.12);
       background: rgba(10,12,18,.72);
       box-shadow: 0 24px 80px rgba(0,0,0,.55);
@@ -311,7 +317,8 @@
 
     .thumb{
       aspect-ratio: 2.3/3;
-      border-radius:18px;
+      /* ✅ 요청: 둥근 모서리 제거 */
+      border-radius:0;
       overflow:hidden;
       position:relative;
       background: rgba(255,255,255,.05);
@@ -319,65 +326,19 @@
     }
     .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-    .thumb::before{
-      content:"";
-      position:absolute; inset:-2px;
-      border-radius:20px;
-      padding:2px;
-      background: linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,0));
-      -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events:none;
-      opacity:.9;
-    }
-
     .thumb.silver{ box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 18px var(--silverGlow), 0 0 46px rgba(190,206,220,.12); }
     .thumb.gold{   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 22px var(--goldGlow),   0 0 64px rgba(255,211,107,.16); }
     .thumb.coral{  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 0 26px var(--coralGlow),  0 0 84px rgba(255,80,125,.18); }
     .thumb.opal{   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 30px var(--opalGlow),   0 0 100px rgba(255,182,255,.18); }
-
-    /* hidden capture sheet for saving */
-    #capture{
-      position:fixed;
-      left:-99999px; top:-99999px;
-      width:1000px;
-      background: transparent;
-      padding:0;
-    }
-    .capWrap{
-      width:1000px;
-      padding:22px;
-      border-radius:24px;
-      background:
-        radial-gradient(1200px 700px at 60% -10%, rgba(120,160,255,.18), transparent 60%),
-        radial-gradient(900px 700px at 85% 10%, rgba(255,120,210,.12), transparent 62%),
-        linear-gradient(180deg, var(--bg1), var(--bg2));
-      color: var(--text);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif;
-    }
-    .capTitle{
-      font-weight:1000;
-      margin:0 0 14px;
-      letter-spacing:.3px;
-      font-size:18px;
-    }
-    .capGrid{
-      display:grid;
-      grid-template-columns: repeat(5, 1fr);
-      gap:12px;
-    }
-    .capGrid .thumb{ filter:none; } /* 캡쳐는 깔끔하게 */
   </style>
 </head>
 <body>
   <div id="flash"></div>
 
   <div class="stage">
-    <!-- reveal slot -->
     <div class="slot" aria-hidden="true">
       <div class="prelude" id="prelude">
-        <div class="preludeBox">
+        <div class="preludeStack">
           <img class="teamLogo step" id="stepLogo" alt="logo" />
           <div class="posText step" id="stepPos">SP</div>
           <div class="rarText step" id="stepRar">CORAL</div>
@@ -390,8 +351,7 @@
       </div>
     </div>
 
-    <!-- start screen: only pack -->
-    <div class="packCard" id="packCard" title="클릭해서 팩 오픈">
+    <div class="packCard" id="packCard" title="터치해서 팩 오픈">
       <img src="pack.png" alt="pack" />
     </div>
 
@@ -412,14 +372,6 @@
     </div>
   </div>
 
-  <!-- Capture sheet (for image saving) -->
-  <div id="capture">
-    <div class="capWrap" id="capWrap">
-      <div class="capTitle">Pack Result</div>
-      <div class="capGrid" id="capGrid"></div>
-    </div>
-  </div>
-
   <script>
     // ===============================
     // CONFIG
@@ -427,8 +379,7 @@
     const SEASON = "57";
     const RARITY_WEIGHT = { silver:86, gold:10, coral:3, opal:1 };
 
-    // 테스트: 너가 지금 가진 코랄 TSUKI 1개만
-    // 나중에 카드 늘리면 여기 엔트리만 추가하면 됨.
+    // 테스트: 코랄 TSUKI 1장만 풀에 있음 (카드 늘리면 여기만 추가)
     const CARD_POOL = [
       {
         rarity:"coral",
@@ -441,7 +392,7 @@
     ];
 
     // ===============================
-    // STATE
+    // STATE / ELS
     // ===============================
     const $ = (id)=>document.getElementById(id);
     const els = {
@@ -462,15 +413,12 @@
       resultGrid: $("resultGrid"),
       btnSave: $("btnSave"),
       btnRetry: $("btnRetry"),
-
-      capGrid: $("capGrid"),
-      capWrap: $("capWrap")
     };
 
     let queue = [];
     let opened = false;
     let revealing = false;
-    let openedResults = []; // {rar, card} in order
+    let openedResults = []; // {rar, card}
 
     // ===============================
     // HELPERS
@@ -530,22 +478,21 @@
     }
 
     function resetRevealVisual(){
-      // hide prelude
       els.prelude.classList.remove("show");
       [els.stepLogo, els.stepPos, els.stepRar].forEach(el=>{
         el.classList.remove("on");
         el.style.display = "none";
       });
 
-      // hide card
       els.cardWrap.classList.remove("show","silver","gold","coral","opal");
       els.cardImg.removeAttribute("src");
 
-      // scan reset
       els.scan.classList.remove("play");
     }
 
-    // ===== Prelude sequence (logo only -> pos only -> rar only) =====
+    // ✅ 요청: 코랄/오팔은 1초씩 "찬찬히"
+    const PRELUDE_STEP_MS = 1000;
+
     function showPreludeSequence(draw){
       const rar = draw.rar;
       if(rar !== "coral" && rar !== "opal") return Promise.resolve();
@@ -555,32 +502,34 @@
       // set contents
       els.stepLogo.src = draw.card.logo || "";
       els.stepLogo.onerror = ()=> els.stepLogo.removeAttribute("src");
+
       els.stepPos.textContent = draw.card.pos || "";
       els.stepRar.textContent = rar.toUpperCase();
       els.stepRar.className = "rarText step " + rar;
 
-      const showStep = (el, ms=520) => new Promise(res=>{
-        // hide all steps first
+      const hideAll = ()=>{
         [els.stepLogo, els.stepPos, els.stepRar].forEach(x=>{
           x.classList.remove("on");
           x.style.display = "none";
         });
+      };
+
+      const showStep = (el, ms=PRELUDE_STEP_MS) => new Promise(res=>{
+        hideAll();
         el.style.display = "block";
         el.classList.add("on");
+        // 각 단계마다 색 플래시
+        flashColor(rar);
         setTimeout(res, ms);
       });
 
-      // color flash on each step 느낌
       return (async ()=>{
-        flashColor(rar);
-        await showStep(els.stepLogo, 520);
-        flashColor(rar);
-        await showStep(els.stepPos, 520);
-        flashColor(rar);
-        await showStep(els.stepRar, 620);
+        await showStep(els.stepLogo);
+        await showStep(els.stepPos);
+        await showStep(els.stepRar, PRELUDE_STEP_MS + 200);
 
-        // fade out prelude quickly
         els.prelude.classList.remove("show");
+        hideAll();
       })();
     }
 
@@ -590,23 +539,27 @@
     function openPack(){
       if(opened) return;
 
-      // init
       openedResults = [];
       queue = generatePack5();
       opened = false;
       revealing = false;
       resetRevealVisual();
 
-      // pack open animation
       els.packCard.classList.add("opening");
       els.packCard.style.cursor = "default";
 
       const onEnd = () => {
         els.packCard.removeEventListener("animationend", onEnd);
+
+        // 팩 숨김 + 클릭 활성
         els.packCard.style.display = "none";
         els.clickCatcher.classList.add("on");
         opened = true;
+
+        // ✅ 요청 (1): 터치 한 번으로 바로 1장 공개
+        revealNext();
       };
+
       els.packCard.addEventListener("animationend", onEnd);
     }
 
@@ -614,7 +567,6 @@
       if(!opened || revealing) return;
 
       if(queue.length === 0){
-        // finished: show result modal
         opened = false;
         revealing = false;
         els.clickCatcher.classList.remove("on");
@@ -630,15 +582,16 @@
 
       const rar = draw.rar;
 
-      // For coral/opal: do prelude first (logo -> pos -> rar), then card
       if(rar === "coral" || rar === "opal"){
         await showPreludeSequence(draw);
       }
 
-      // card appears
       applyRarity(rar);
       els.cardImg.src = draw.card.img;
-      els.cardImg.onerror = () => els.cardImg.removeAttribute("src");
+      els.cardImg.onerror = () => {
+        console.error("[IMG 404] card:", draw.card.img);
+        els.cardImg.removeAttribute("src");
+      };
 
       flashColor(rar);
       playScanIfNeeded(rar);
@@ -647,6 +600,7 @@
       void els.cardWrap.offsetWidth;
       els.cardWrap.classList.add("show");
 
+      // 클릭 연타 방지
       setTimeout(()=>{ revealing = false; }, 260);
     }
 
@@ -664,14 +618,8 @@
     }
 
     function showResults(){
-      // grid on modal
       els.resultGrid.innerHTML = "";
       openedResults.forEach(draw => els.resultGrid.appendChild(buildThumb(draw)));
-
-      // grid on capture sheet
-      els.capGrid.innerHTML = "";
-      openedResults.forEach(draw => els.capGrid.appendChild(buildThumb(draw)));
-
       els.modal.classList.add("on");
     }
 
@@ -684,7 +632,6 @@
 
       resetRevealVisual();
 
-      // pack back to center
       els.packCard.style.display = "grid";
       els.packCard.classList.remove("opening");
       els.packCard.style.cursor = "pointer";
@@ -693,50 +640,111 @@
       els.clickCatcher.classList.remove("on");
     }
 
-    // Save result as image (no external libs)
+    // ✅ 요청 (4): 이번에 뽑은 5장의 "카드 이미지"가 저장되게 (한 장의 PNG로 합쳐서 저장)
     async function saveResultAsImage(){
-      // html2canvas 같은 라이브러리 없이 "DOM을 이미지"는 원래 어렵다.
-      // 그래서 여기서는 "캡쳐용 영역을 SVG foreignObject로 렌더" 방식 사용.
-      // (크롬/엣지에서 잘 됨)
+      try{
+        if(openedResults.length !== 5){
+          alert("5장을 모두 공개한 뒤 저장할 수 있어.");
+          return;
+        }
 
-      const node = els.capWrap;
+        // 이미지 로드
+        const load = (src)=>new Promise((resolve,reject)=>{
+          const img = new Image();
+          // same-origin(=Netlify)면 이거 없어도 되지만, 안전하게
+          img.crossOrigin = "anonymous";
+          img.onload = ()=> resolve(img);
+          img.onerror = ()=> reject(new Error("이미지 로드 실패: " + src));
+          img.src = src;
+        });
 
-      // serialize node to SVG
-      const width = 1000;
-      const height = node.getBoundingClientRect().height;
+        const imgs = await Promise.all(openedResults.map(d => load(d.card.img)));
 
-      const clone = node.cloneNode(true);
-      clone.style.width = width + "px";
-      clone.style.height = height + "px";
+        // 캔버스 크기 설정 (가로 5장 배치)
+        const pad = 28;
+        const gap = 18;
 
-      // wrap clone in container for serialization
-      const wrapper = document.createElement("div");
-      wrapper.appendChild(clone);
+        // 썸네일 기준 크기 (원본 비율 유지)
+        const cardW = 320;
+        const cardH = Math.round(cardW * (3/2.3)); // slot aspect 2.3/3 -> h = w*(3/2.3)
 
-      const html = new XMLSerializer().serializeToString(wrapper);
+        const canvasW = pad*2 + (cardW*5) + gap*4;
+        const canvasH = pad*2 + cardH + 90; // 아래 여백/타이틀
 
-      const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-          <foreignObject width="100%" height="100%">
-            <div xmlns="http://www.w3.org/1999/xhtml">${html}</div>
-          </foreignObject>
-        </svg>
-      `;
+        const c = document.createElement("canvas");
+        c.width = canvasW;
+        c.height = canvasH;
+        const ctx = c.getContext("2d");
 
-      const svgBlob = new Blob([svg], {type: "image/svg+xml;charset=utf-8"});
-      const url = URL.createObjectURL(svgBlob);
+        // 배경
+        const g = ctx.createLinearGradient(0,0,0,canvasH);
+        g.addColorStop(0, "#06070b");
+        g.addColorStop(1, "#0b1222");
+        ctx.fillStyle = g;
+        ctx.fillRect(0,0,canvasW,canvasH);
 
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext("2d");
-        ctx.drawImage(img, 0, 0);
-        URL.revokeObjectURL(url);
+        // 약간의 빛 번짐
+        const rg1 = ctx.createRadialGradient(canvasW*0.65, canvasH*0.1, 10, canvasW*0.65, canvasH*0.1, canvasW*0.6);
+        rg1.addColorStop(0, "rgba(120,160,255,.18)");
+        rg1.addColorStop(1, "rgba(120,160,255,0)");
+        ctx.fillStyle = rg1;
+        ctx.fillRect(0,0,canvasW,canvasH);
 
-        canvas.toBlob((blob)=>{
+        const rg2 = ctx.createRadialGradient(canvasW*0.88, canvasH*0.15, 10, canvasW*0.88, canvasH*0.15, canvasW*0.55);
+        rg2.addColorStop(0, "rgba(255,120,210,.12)");
+        rg2.addColorStop(1, "rgba(255,120,210,0)");
+        ctx.fillStyle = rg2;
+        ctx.fillRect(0,0,canvasW,canvasH);
+
+        // 타이틀
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.font = "700 22px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
+        ctx.fillText("Pack Result", pad, pad + 26);
+
+        // 등급별 테두리/글로우(캔버스용)
+        const glow = {
+          silver: "rgba(190,206,220,.55)",
+          gold:   "rgba(255,211,107,.60)",
+          coral:  "rgba(255,127,160,.62)",
+          opal:   "rgba(159,243,255,.60)",
+        };
+
+        // 카드 5장 그리기
+        const topY = pad + 46;
+        for(let i=0;i<5;i++){
+          const x = pad + i*(cardW + gap);
+          const y = topY;
+
+          const rar = openedResults[i].rar;
+          const glowCol = glow[rar] || "rgba(255,255,255,.35)";
+
+          // glow
+          ctx.save();
+          ctx.shadowColor = glowCol;
+          ctx.shadowBlur = 26;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 10;
+          ctx.strokeStyle = "rgba(255,255,255,.08)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x-2, y-2, cardW+4, cardH+4);
+          ctx.restore();
+
+          // card image (모서리 그대로)
+          ctx.drawImage(imgs[i], x, y, cardW, cardH);
+
+          // 얇은 라인
+          ctx.strokeStyle = "rgba(255,255,255,.10)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cardW, cardH);
+
+          // rarity label small
+          ctx.fillStyle = "rgba(255,255,255,.78)";
+          ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
+          ctx.fillText(rar.toUpperCase(), x, y + cardH + 26);
+        }
+
+        // 저장
+        c.toBlob((blob)=>{
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
           a.download = `pack_result_${Date.now()}.png`;
@@ -744,24 +752,26 @@
           a.click();
           a.remove();
         }, "image/png");
-      };
-      img.onerror = () => {
-        URL.revokeObjectURL(url);
-        alert("저장에 실패했습니다. (브라우저 제한) 필요하면 html2canvas 방식으로 바꿔줄게.");
-      };
-      img.src = url;
+
+      }catch(e){
+        console.error(e);
+        alert("저장 실패. (이미지 경로/대소문자/폴더 위치/CORS 문제 가능) 콘솔(F12) 에러 확인해줘.");
+      }
     }
 
     // ===============================
     // EVENTS
     // ===============================
     els.packCard.addEventListener("click", openPack);
+    els.packCard.addEventListener("touchend", (e)=>{ e.preventDefault(); openPack(); }, {passive:false});
+
     els.clickCatcher.addEventListener("click", revealNext);
+    els.clickCatcher.addEventListener("touchend", (e)=>{ e.preventDefault(); revealNext(); }, {passive:false});
 
     els.btnRetry.addEventListener("click", resetToStart);
     els.btnSave.addEventListener("click", saveResultAsImage);
 
-    // start state
+    // start
     resetToStart();
   </script>
 </body>
