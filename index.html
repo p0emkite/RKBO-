@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Simple Card Gacha (Com2us-style)</title>
+  <title>Simple Card Gacha (Silver/Gold/Coral/Opal)</title>
   <style>
     :root{
       --bg:#0b1020;
@@ -30,6 +30,8 @@
       border-radius:18px;
       padding:18px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+      position:relative;
+      overflow:hidden;
     }
     header{
       display:flex;
@@ -64,15 +66,14 @@
       padding:10px 12px;
       border-radius:12px;
       cursor:pointer;
-      font-weight:600;
+      font-weight:700;
       letter-spacing:0.2px;
       transition: transform .08s ease, background .12s ease, border-color .12s ease;
     }
     button:hover{ background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.22); }
     button:active{ transform: translateY(1px) scale(0.99); }
-    button.secondary{
-      background: transparent;
-    }
+    button.secondary{ background: transparent; }
+
     .pill{
       padding:8px 10px;
       border-radius:999px;
@@ -163,15 +164,62 @@
     .name{ font-size:16px; font-weight:900; text-align:center; }
     .meta{ margin-top:6px; font-size:12px; color:var(--muted); text-align:center; line-height:1.25; }
 
-    /* Simple rarity glow */
-    .card[data-r="B"] .front{ box-shadow:none; }
-    .card[data-r="A"] .front{ box-shadow: 0 0 0 1px rgba(255,255,255,0.10); }
-    .card[data-r="S"] .front{ box-shadow: 0 0 18px rgba(59,130,246,0.35); }
-    .card[data-r="SS"] .front{ box-shadow: 0 0 22px rgba(168,85,247,0.40); }
-    .card[data-r="L"] .front{
-      box-shadow: 0 0 28px rgba(245,158,11,0.55), 0 0 0 1px rgba(245,158,11,0.22);
+    /* ===== Rarity glow & color ===== */
+    .card[data-r="SILVER"] .front{
+      box-shadow: 0 0 14px rgba(203,213,225,0.30);
+      border-color: rgba(226,232,240,0.22);
     }
-    /* 작은 번쩍 */
+    .card[data-r="SILVER"] .rarity{ background: rgba(148,163,184,0.22); }
+
+    .card[data-r="GOLD"] .front{
+      box-shadow: 0 0 26px rgba(245,158,11,0.55), 0 0 0 1px rgba(245,158,11,0.22);
+      border-color: rgba(245,158,11,0.28);
+    }
+    .card[data-r="GOLD"] .rarity{ background: rgba(245,158,11,0.22); }
+
+    .card[data-r="CORAL"] .front{
+      box-shadow: 0 0 26px rgba(251,113,133,0.55), 0 0 0 1px rgba(251,113,133,0.22);
+      border-color: rgba(251,113,133,0.28);
+    }
+    .card[data-r="CORAL"] .rarity{ background: rgba(251,113,133,0.22); }
+
+    /* OPAL: prism/holo 느낌 */
+    .card[data-r="OPAL"] .front{
+      border-color: rgba(255,255,255,0.26);
+      box-shadow: 0 0 34px rgba(255,255,255,0.20), 0 0 38px rgba(99,102,241,0.22);
+      background:
+        radial-gradient(180px 140px at 30% 20%, rgba(255,255,255,0.20), rgba(255,255,255,0.06)),
+        linear-gradient(180deg, rgba(0,0,0,0.12), rgba(0,0,0,0.36));
+      overflow:hidden;
+    }
+    .card[data-r="OPAL"] .front::before{
+      content:"";
+      position:absolute;
+      inset:-40%;
+      background:
+        linear-gradient(120deg,
+          rgba(255,0,128,0.18),
+          rgba(0,255,255,0.18),
+          rgba(255,255,0,0.18),
+          rgba(128,0,255,0.18),
+          rgba(0,255,128,0.18)
+        );
+      filter: blur(6px);
+      transform: translateX(-40%) rotate(12deg);
+      opacity: 0.0;
+      pointer-events:none;
+    }
+    .card.revealed[data-r="OPAL"] .front::before{
+      opacity: 1;
+      animation: opalSweep 1.2s ease-out 1;
+    }
+    @keyframes opalSweep{
+      from{ transform: translateX(-60%) rotate(12deg); }
+      to{ transform: translateX(60%) rotate(12deg); }
+    }
+    .card[data-r="OPAL"] .rarity{ background: rgba(255,255,255,0.18); }
+
+    /* 작은 번쩍(코랄/오팔에서 더 잘 보이게) */
     .spark{
       position:absolute;
       inset:-40%;
@@ -180,8 +228,8 @@
       animation: none;
       pointer-events:none;
     }
-    .card.revealed[data-r="L"] .spark,
-    .card.revealed[data-r="SS"] .spark{
+    .card.revealed[data-r="CORAL"] .spark,
+    .card.revealed[data-r="OPAL"] .spark{
       animation: sweep 900ms ease-out 1;
     }
     @keyframes sweep{
@@ -216,22 +264,85 @@
       display:none;
     }
     .toast.show{ display:block; }
+
+    /* ===== Full-screen tint overlay on reveal ===== */
+    .tint{
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: 0;
+      z-index: 9999;
+      transition: opacity 140ms ease;
+      background: radial-gradient(900px 500px at 50% 40%, rgba(255,255,255,0.0), rgba(0,0,0,0.0));
+    }
+    .tint.show{ opacity: 1; }
+    .tint.silver{
+      background: radial-gradient(900px 520px at 50% 40%,
+        rgba(226,232,240,0.22),
+        rgba(15,23,42,0.25),
+        rgba(0,0,0,0.35)
+      );
+    }
+    .tint.gold{
+      background: radial-gradient(900px 520px at 50% 40%,
+        rgba(245,158,11,0.26),
+        rgba(15,23,42,0.25),
+        rgba(0,0,0,0.35)
+      );
+    }
+    .tint.coral{
+      background: radial-gradient(900px 520px at 50% 40%,
+        rgba(251,113,133,0.28),
+        rgba(15,23,42,0.25),
+        rgba(0,0,0,0.35)
+      );
+    }
+    .tint.opal{
+      background:
+        radial-gradient(900px 520px at 50% 40%,
+          rgba(255,255,255,0.18),
+          rgba(15,23,42,0.22),
+          rgba(0,0,0,0.35)
+        ),
+        linear-gradient(120deg,
+          rgba(255,0,128,0.12),
+          rgba(0,255,255,0.12),
+          rgba(255,255,0,0.12),
+          rgba(128,0,255,0.12),
+          rgba(0,255,128,0.12)
+        );
+    }
+    .tint.flash::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:white;
+      opacity:0;
+      animation: tintFlash 280ms ease-out 1;
+    }
+    @keyframes tintFlash{
+      0%{ opacity:0; }
+      35%{ opacity:0.9; }
+      100%{ opacity:0; }
+    }
   </style>
 </head>
 <body>
+  <div class="tint" id="tint"></div>
+
   <div class="app">
     <header>
       <div>
-        <h1>심플 카드팩 뽑기 (10연)</h1>
+        <h1>카드팩 뽑기 (실버/골드/코랄/오팔)</h1>
         <div class="sub">
-          - 확률: B 70% / A 22% / S 6.5% / SS 1.3% / L 0.2%<br>
-          - 10연은 <b>A+</b> 1장 보장 (나머지는 확률대로)
+          - 기본 확률: 실버 86% / 골드 10% / 코랄 3% / 오팔 1%<br>
+          - 10연 보장: <b>골드 이상 1장 확정</b> (확정 분포: 골드 96% / 코랄 3% / 오팔 1%)
         </div>
       </div>
       <div class="controls">
         <span class="pill" id="statsPill">Ready</span>
         <button id="pull1">1장 뽑기</button>
-        <button id="pull10">10연 뽑기</button>
+        <button id="pull10">10장 뽑기</button>
         <button class="secondary" id="revealAll">전부 공개</button>
         <button class="secondary" id="clear">초기화</button>
       </div>
@@ -265,18 +376,23 @@
   ];
 
   // ====== 2) 확률 테이블 ======
-  // (컴프야 느낌용 예시 확률: 합 100%)
-  const rarityTable = [
-    { r: "B", p: 70.0 },
-    { r: "A", p: 22.0 },
-    { r: "S", p: 6.5 },
-    { r: "SS", p: 1.3 },
-    { r: "L", p: 0.2 }
+  // 기본 확률: 실버 86 / 골드 10 / 코랄 3 / 오팔 1
+  const baseRarityTable = [
+    { r: "SILVER", p: 86.0 },
+    { r: "GOLD",   p: 10.0 },
+    { r: "CORAL",  p: 3.0 },
+    { r: "OPAL",   p: 1.0 }
   ];
 
-  // 보장: 10연에 최소 A 이상 1장
-  const GUARANTEE_MIN = "A";
-  const rarityRank = { "B": 1, "A": 2, "S": 3, "SS": 4, "L": 5 };
+  // 10연 보장 카드(골드 이상 확정) 분포: 골드 96 / 코랄 3 / 오팔 1
+  const guaranteeTable = [
+    { r: "GOLD",  p: 96.0 },
+    { r: "CORAL", p: 3.0 },
+    { r: "OPAL",  p: 1.0 }
+  ];
+
+  const rarityRank = { SILVER: 1, GOLD: 2, CORAL: 3, OPAL: 4 };
+  const rarityLabel = { SILVER: "실버", GOLD: "골드", CORAL: "코랄", OPAL: "오팔" };
 
   // ====== Utilities ======
   const $ = (sel) => document.querySelector(sel);
@@ -284,6 +400,7 @@
   const logEl = $("#log");
   const toast = $("#toast");
   const statsPill = $("#statsPill");
+  const tint = $("#tint");
 
   function showToast(msg){
     toast.textContent = msg;
@@ -296,38 +413,59 @@
     return arr[Math.floor(Math.random() * arr.length)];
   }
 
-  function rollRarity(minR = null){
-    // minR이 있으면 그 이상만 나오도록
-    while(true){
-      const x = Math.random() * 100;
-      let acc = 0;
-      for(const row of rarityTable){
-        acc += row.p;
-        if(x <= acc){
-          if(!minR) return row.r;
-          if(rarityRank[row.r] >= rarityRank[minR]) return row.r;
-          break;
-        }
-      }
+  function rollFromTable(table){
+    const total = table.reduce((s, x) => s + x.p, 0);
+    let x = Math.random() * total;
+    for(const row of table){
+      x -= row.p;
+      if(x <= 0) return row.r;
     }
+    return table[table.length - 1].r;
   }
 
-  function makeCardData(minR = null){
-    const rarity = rollRarity(minR);
+  function makeCardData(table){
+    const rarity = rollFromTable(table);
     const p = randChoice(players);
-    // OVR은 등급별로 대충 범위만
-    const base = { B: 68, A: 76, S: 84, SS: 90, L: 95 }[rarity];
-    const ovr = base + Math.floor(Math.random() * 5);
+
+    // 등급별 OVR 대충 범위만
+    const base = { SILVER: 70, GOLD: 82, CORAL: 90, OPAL: 96 }[rarity];
+    const ovr  = base + Math.floor(Math.random() * 5);
+
     return { rarity, ...p, ovr };
   }
 
-  function ensureGuarantee(cards){
-    // 10연에서 A+가 하나도 없으면, 랜덤 1장을 A+로 재롤
-    const hasAPlus = cards.some(c => rarityRank[c.rarity] >= rarityRank[GUARANTEE_MIN]);
-    if(hasAPlus) return cards;
+  function ensureTenPullGuarantee(cards){
+    // 10장 중 GOLD+가 하나라도 있으면 그대로
+    const hasGoldPlus = cards.some(c => rarityRank[c.rarity] >= rarityRank["GOLD"]);
+    if(hasGoldPlus) return cards;
+
+    // 없으면 "확정 분포"로 1장을 뽑아서 랜덤 위치에 대체
     const idx = Math.floor(Math.random() * cards.length);
-    cards[idx] = makeCardData(GUARANTEE_MIN);
+    cards[idx] = makeCardData(guaranteeTable);
     return cards;
+  }
+
+  // ====== Full-screen tint effect ======
+  function rarityToTintClass(r){
+    if(r === "SILVER") return "silver";
+    if(r === "GOLD") return "gold";
+    if(r === "CORAL") return "coral";
+    return "opal";
+  }
+
+  function pulseTint(rarity){
+    const cls = rarityToTintClass(rarity);
+    tint.className = "tint"; // reset
+    tint.classList.add(cls, "flash", "show");
+
+    clearTimeout(pulseTint._t1);
+    clearTimeout(pulseTint._t2);
+
+    // 살짝 유지 후 페이드
+    pulseTint._t1 = setTimeout(() => tint.classList.remove("show"), 220);
+    pulseTint._t2 = setTimeout(() => {
+      tint.className = "tint";
+    }, 520);
   }
 
   // ====== UI Rendering ======
@@ -345,7 +483,7 @@
         </div>
         <div class="face front">
           <div class="spark"></div>
-          <div class="rarity">${card.rarity}</div>
+          <div class="rarity">${rarityLabel[card.rarity]}</div>
           <div class="name">${card.name}</div>
           <div class="meta">${card.team} · ${card.pos}<br>OVR ${card.ovr}</div>
         </div>
@@ -355,10 +493,16 @@
     el.addEventListener("click", () => {
       if(el.classList.contains("revealed")) return;
       el.classList.add("revealed");
-      // 레어 연출 느낌(간단)
-      if(card.rarity === "L") showToast("💥 레전드!");
-      else if(card.rarity === "SS") showToast("✨ SS!");
-      else if(card.rarity === "S") showToast("⭐ S!");
+
+      // 전체 화면 색 틴트(짧게)
+      pulseTint(card.rarity);
+
+      // 토스트(간단)
+      if(card.rarity === "OPAL") showToast("🌈 오팔!");
+      else if(card.rarity === "CORAL") showToast("🪸 코랄!");
+      else if(card.rarity === "GOLD") showToast("✨ 골드!");
+      else showToast("실버");
+
       updateStats();
     });
 
@@ -379,8 +523,11 @@
     const summary = cards
       .map(c => c.rarity)
       .reduce((m, r) => (m[r] = (m[r]||0)+1, m), {});
-    const order = ["L","SS","S","A","B"];
-    const txt = order.filter(k=>summary[k]).map(k=>`${k}×${summary[k]}`).join("  ");
+    const order = ["OPAL","CORAL","GOLD","SILVER"];
+    const txt = order
+      .filter(k=>summary[k])
+      .map(k=>`${rarityLabel[k]}×${summary[k]}`)
+      .join("  ");
     logEl.innerHTML = `마지막 결과: <b>${txt || "-"}</b>`;
   }
 
@@ -396,8 +543,8 @@
 
   // ====== Actions ======
   function pull(n){
-    const cards = Array.from({length:n}, () => makeCardData(null));
-    if(n === 10) ensureGuarantee(cards);
+    const cards = Array.from({length:n}, () => makeCardData(baseRarityTable));
+    if(n === 10) ensureTenPullGuarantee(cards);
     render(cards);
   }
 
@@ -406,11 +553,16 @@
 
   $("#revealAll").addEventListener("click", () => {
     document.querySelectorAll(".card").forEach(el => el.classList.add("revealed"));
-    // 전부 공개하면 최고 등급 안내만 한번
-    const best = currentCards.reduce((a,c)=> rarityRank[c.rarity] > rarityRank[a] ? c.rarity : a, "B");
-    if(best === "L") showToast("💥 레전드 포함!");
-    else if(best === "SS") showToast("✨ SS 포함!");
-    else if(best === "S") showToast("⭐ S 포함!");
+
+    // 전부 공개 시: 최고 등급 기준으로 한 번만 틴트 + 토스트
+    const best = currentCards.reduce((a,c)=> rarityRank[c.rarity] > rarityRank[a] ? c.rarity : a, "SILVER");
+    pulseTint(best);
+
+    if(best === "OPAL") showToast("🌈 오팔 포함!");
+    else if(best === "CORAL") showToast("🪸 코랄 포함!");
+    else if(best === "GOLD") showToast("✨ 골드 포함!");
+    else showToast("실버만...");
+
     updateStats();
   });
 
@@ -422,7 +574,7 @@
     showToast("초기화!");
   });
 
-  // 첫 화면: 10연 한 번 깔아두기
+  // 첫 화면: 10장 한번 깔아두기
   pull(10);
 </script>
 </body>
