@@ -138,6 +138,7 @@
       filter: drop-shadow(0 18px 28px rgba(0,0,0,.45));
     }
 
+    /* 폰트 크게 */
     .posText{
       font-weight:1000;
       letter-spacing:6px;
@@ -163,7 +164,7 @@
     /* card */
     .cardWrap{
       width:100%; height:100%;
-      border-radius: 0;
+      border-radius: 0; /* 둥근 모서리 제거 */
       position:relative;
       overflow:hidden;
       transform: scale(.90);
@@ -180,7 +181,7 @@
     .cardWrap .img{
       position:absolute; inset:0;
       width:100%; height:100%;
-      object-fit:contain;
+      object-fit:contain;   /* 전체가 다 보이게 */
       background: rgba(255,255,255,.05);
     }
 
@@ -314,7 +315,7 @@
 
     .thumb{
       aspect-ratio: 2/3;
-      border-radius:0;
+      border-radius:0; /* 둥근 모서리 제거 */
       overflow:hidden;
       position:relative;
       background: rgba(255,255,255,.05);
@@ -373,9 +374,33 @@
     // CONFIG
     // ===============================
     const SEASON = "57";
-    const RARITY_WEIGHT = { silver:86, gold:10, coral:3, opal:1 };
 
-    // ✅ FIX: CARD_POOL 중복 선언/배열 안 const 선언 제거 (문법 에러 원인)
+    // ✅ 적용 요청: 등급별 확률(가중치) 변경
+    // 총합 100 기준 느낌으로: silver 72% / gold 20% / coral 5% / opal 3%
+    const RARITY_WEIGHT = { silver: 72, gold: 20, coral: 5, opal: 3 };
+
+    // (테스트 중 일부 이미지가 없어도 "작동은" 하도록, 없으면 placeholder 표시)
+    const PLACEHOLDER_CARD = (() => {
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200">
+          <defs>
+            <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#0b1222"/>
+              <stop offset="1" stop-color="#06070b"/>
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#g)"/>
+          <rect x="40" y="40" width="720" height="1120" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+          <text x="400" y="580" fill="rgba(255,255,255,0.75)" font-size="44" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            MISSING IMAGE
+          </text>
+          <text x="400" y="650" fill="rgba(255,255,255,0.55)" font-size="22" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            (check path / case / deploy)
+          </text>
+        </svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
+    })();
+
     const CARD_POOL = [
       {
         rarity: "silver",
@@ -2141,10 +2166,9 @@
     function normRarity(r){ return String(r || "").trim().toLowerCase(); }
 
     function pickWeightedCard(){
-      const list = CARD_POOL.map(c => ({
-        card: c,
-        w: (RARITY_WEIGHT[normRarity(c.rarity)] ?? 0)
-      })).filter(x => x.w > 0);
+      const list = CARD_POOL
+        .map(c => ({ card: c, w: (RARITY_WEIGHT[normRarity(c.rarity)] ?? 0) }))
+        .filter(x => x.w > 0);
 
       if(list.length === 0){
         return CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
@@ -2194,19 +2218,38 @@
 
     function resetRevealVisual(){
       els.prelude.classList.remove("show");
+
+      // ✅ 로고/카드 이미지 src도 같이 초기화 (이전 이미지 잔존 방지)
+      els.stepLogo.onerror = null;
+      els.stepLogo.removeAttribute("src");
+      els.cardImg.onerror = null;
+      els.cardImg.removeAttribute("src");
+
       [els.stepLogo, els.stepPos, els.stepRar].forEach(el=>{
         el.classList.remove("on");
         el.style.display = "none";
       });
 
       els.cardWrap.classList.remove("show","silver","gold","coral","opal");
-      els.cardImg.removeAttribute("src");
 
       els.scan.classList.remove("play");
     }
 
-    // 코랄/오팔 프리루드 속도
+    // 코랄/오팔은 1초씩 "찬찬히"
     const PRELUDE_STEP_MS = 1000;
+
+    async function safeSetPreludeLogo(src){
+      // ✅ 핵심 수정: 먼저 src 제거(초기화) 후 세팅 -> 이전 로고 잔존 방지
+      els.stepLogo.onerror = null;
+      els.stepLogo.removeAttribute("src");
+
+      if(!src) return;
+
+      els.stepLogo.src = src;
+      els.stepLogo.onerror = () => {
+        els.stepLogo.removeAttribute("src");
+      };
+    }
 
     function showPreludeSequence(draw){
       const rar = draw.rar;
@@ -2214,9 +2257,8 @@
 
       els.prelude.classList.add("show");
 
-      // set contents
-      els.stepLogo.src = draw.card.logo || "";
-      els.stepLogo.onerror = ()=> els.stepLogo.removeAttribute("src");
+      // set contents (SAFE)
+      safeSetPreludeLogo(draw.card.logo || "");
 
       els.stepPos.textContent = draw.card.pos || "";
       els.stepRar.textContent = rar.toUpperCase();
@@ -2301,10 +2343,12 @@
       }
 
       applyRarity(rar);
+
       els.cardImg.src = draw.card.img;
       els.cardImg.onerror = () => {
         console.error("[IMG 404] card:", draw.card.img);
-        els.cardImg.removeAttribute("src");
+        // ✅ 테스트 중 일부만 올려도 '진행'은 되게 placeholder 표시
+        els.cardImg.src = PLACEHOLDER_CARD;
       };
 
       flashColor(rar);
@@ -2327,6 +2371,7 @@
       const img = document.createElement("img");
       img.src = draw.card.img;
       img.alt = `${draw.rar} ${draw.card.teamAbbr} ${draw.card.name}`;
+      img.onerror = () => { img.src = PLACEHOLDER_CARD; };
       d.appendChild(img);
       return d;
     }
@@ -2354,7 +2399,7 @@
       els.clickCatcher.classList.remove("on");
     }
 
-    // 결과 5장을 한 장의 PNG로 합쳐서 저장
+    // 이번에 뽑은 5장의 "카드 이미지"를 한 장의 PNG로 합쳐 저장
     async function saveResultAsImage(){
       try{
         if(openedResults.length !== 5){
@@ -2362,11 +2407,15 @@
           return;
         }
 
-        const load = (src)=>new Promise((resolve,reject)=>{
+        const load = (src)=>new Promise((resolve)=>{
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.onload = ()=> resolve(img);
-          img.onerror = ()=> reject(new Error("이미지 로드 실패: " + src));
+          img.onerror = ()=> {
+            const fallback = new Image();
+            fallback.onload = ()=> resolve(fallback);
+            fallback.src = PLACEHOLDER_CARD;
+          };
           img.src = src;
         });
 
@@ -2375,9 +2424,8 @@
         const pad = 28;
         const gap = 18;
 
-        // ✅ FIX: 카드 이미지가 2:3(800x1200)라서 캔버스도 2:3 기준으로 저장되게 수정
         const cardW = 320;
-        const cardH = Math.round(cardW * (3/2)); // 2:3 비율
+        const cardH = Math.round(cardW * (3/2.3));
 
         const canvasW = pad*2 + (cardW*5) + gap*4;
         const canvasH = pad*2 + cardH + 90;
@@ -2387,14 +2435,12 @@
         c.height = canvasH;
         const ctx = c.getContext("2d");
 
-        // 배경
         const g = ctx.createLinearGradient(0,0,0,canvasH);
         g.addColorStop(0, "#06070b");
         g.addColorStop(1, "#0b1222");
         ctx.fillStyle = g;
         ctx.fillRect(0,0,canvasW,canvasH);
 
-        // 빛 번짐
         const rg1 = ctx.createRadialGradient(canvasW*0.65, canvasH*0.1, 10, canvasW*0.65, canvasH*0.1, canvasW*0.6);
         rg1.addColorStop(0, "rgba(120,160,255,.18)");
         rg1.addColorStop(1, "rgba(120,160,255,0)");
@@ -2407,7 +2453,6 @@
         ctx.fillStyle = rg2;
         ctx.fillRect(0,0,canvasW,canvasH);
 
-        // 타이틀
         ctx.fillStyle = "rgba(255,255,255,.92)";
         ctx.font = "700 22px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
         ctx.fillText(`Pack Result (S${SEASON})`, pad, pad + 26);
@@ -2427,7 +2472,6 @@
           const rar = openedResults[i].rar;
           const glowCol = glow[rar] || "rgba(255,255,255,.35)";
 
-          // glow
           ctx.save();
           ctx.shadowColor = glowCol;
           ctx.shadowBlur = 26;
@@ -2438,25 +2482,19 @@
           ctx.strokeRect(x-2, y-2, cardW+4, cardH+4);
           ctx.restore();
 
-          // card
           ctx.drawImage(imgs[i], x, y, cardW, cardH);
 
-          // outline
           ctx.strokeStyle = "rgba(255,255,255,.10)";
           ctx.lineWidth = 1;
           ctx.strokeRect(x, y, cardW, cardH);
 
-          // rarity label
           ctx.fillStyle = "rgba(255,255,255,.78)";
           ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
           ctx.fillText(rar.toUpperCase(), x, y + cardH + 26);
         }
 
         c.toBlob((blob)=>{
-          if(!blob){
-            alert("저장 실패: 브라우저가 캔버스 변환을 막았어. (CORS/보안 설정 가능)");
-            return;
-          }
+          if(!blob){ alert("저장 실패(브라우저 blob 생성 실패)"); return; }
           const a = document.createElement("a");
           a.href = URL.createObjectURL(blob);
           a.download = `pack_result_${Date.now()}.png`;
@@ -2467,7 +2505,7 @@
 
       }catch(e){
         console.error(e);
-        alert("저장 실패. (이미지 경로/대소문자/폴더 위치/CORS 문제 가능) 콘솔(F12) 에러 확인해줘.");
+        alert("저장 실패. 콘솔(F12) 에러 확인해줘.");
       }
     }
 
@@ -2485,9 +2523,6 @@
 
     // start
     resetToStart();
-
-    // (원하면 콘솔로 확인)
-    // console.log("CARD_POOL size:", CARD_POOL.length);
   </script>
 </body>
 </html>
