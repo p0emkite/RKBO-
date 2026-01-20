@@ -285,7 +285,21 @@
       font-weight:1000;
       letter-spacing:.3px;
       font-size:16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
     }
+
+    /* ✅ (요청1) n트 표시 배지 */
+    .attemptBadge{
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:1000;
+      font-size:13px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.16);
+    }
+
     .btns{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
     .btn{
       appearance:none;
@@ -359,7 +373,8 @@
   <div class="modal" id="modal">
     <div class="panel">
       <div class="panelTop">
-        <div class="panelTitle">결과</div>
+        <!-- ✅ (요청1) 결과 n트 -->
+        <div class="panelTitle">결과 <span id="attemptBadge" class="attemptBadge">1트</span></div>
         <div class="btns">
           <button class="btn" id="btnSave">결과 저장하기 (이미지)</button>
           <button class="btn" id="btnRetry">다시 뽑기</button>
@@ -379,8 +394,27 @@
     // 총합 100 기준 느낌으로: silver 72% / gold 20% / coral 5% / opal 3%
     const RARITY_WEIGHT = { silver: 72, gold: 20, coral: 5, opal: 3 };
 
-    // (테스트 중 일부 이미지가 없어도 "작동은" 하도록, 없으면 placeholder 표시)
-    const PLACEHOLDER_CARD = (() => {
+    // ===============================
+    // ✅ (요청1/2) LOCAL STORAGE: n트, 오팔 천장(50)
+    // ===============================
+    const LS_ATTEMPT_KEY = "rkbo_attempt_count";
+    const LS_NO_OPAL_STREAK_KEY = "rkbo_no_opal_streak";
+
+    const getLS = (k)=> Number(localStorage.getItem(k) || "0");
+    const setLS = (k,v)=> localStorage.setItem(k, String(v));
+
+    function renderAttempt(){
+      const el = document.getElementById("attemptBadge");
+      if(!el) return;
+      const n = Math.max(1, getLS(LS_ATTEMPT_KEY));
+      el.textContent = `${n}트`;
+    }
+
+    // ===============================
+    // ✅ (요청3) MISSING IMAGE → 카드명 표시 placeholder
+    // ===============================
+    function makePlaceholder(label){
+      const t = String(label || "UNKNOWN").slice(0, 48);
       const svg = `
         <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200">
           <defs>
@@ -390,16 +424,30 @@
             </linearGradient>
           </defs>
           <rect width="100%" height="100%" fill="url(#g)"/>
-          <rect x="40" y="40" width="720" height="1120" fill="rgba(255,255,255,0.05)" stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
-          <text x="400" y="580" fill="rgba(255,255,255,0.75)" font-size="44" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
-            MISSING IMAGE
+          <rect x="40" y="40" width="720" height="1120"
+            fill="rgba(255,255,255,0.05)"
+            stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+          <text x="400" y="575" fill="rgba(255,255,255,0.92)"
+            font-size="34" text-anchor="middle"
+            font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            ${t}
           </text>
-          <text x="400" y="650" fill="rgba(255,255,255,0.55)" font-size="22" text-anchor="middle" font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
-            (check path / case / deploy)
+          <text x="400" y="645" fill="rgba(255,255,255,0.55)"
+            font-size="22" text-anchor="middle"
+            font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            (image missing)
           </text>
         </svg>`;
       return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
-    })();
+    }
+
+    function labelOf(draw){
+      const team = draw?.card?.teamAbbr ?? "";
+      const pos  = draw?.card?.pos ?? "";
+      const name = draw?.card?.name ?? "";
+      const rar  = String(draw?.rar ?? "").toUpperCase();
+      return `${team} ${pos} ${name} (${rar})`.trim();
+    }
 
     const CARD_POOL = [
       {
@@ -2182,12 +2230,27 @@
       return list[list.length - 1].card;
     }
 
+    // ✅ (요청2) 50천장: "연속 50팩 오팔 0회"면 다음 팩에서 오팔 1장 강제
     function generatePack5(){
       const draws = [];
       for(let i=0;i<5;i++){
         const card = pickWeightedCard();
         draws.push({ rar: normRarity(card.rarity), card });
       }
+
+      const streak = getLS(LS_NO_OPAL_STREAK_KEY); // 오팔 0회 연속 팩 수
+      if(streak >= 49){
+        const opals = CARD_POOL.filter(c => normRarity(c.rarity) === "opal");
+        if(opals.length){
+          const idx = Math.floor(Math.random() * 5);
+          const oc  = opals[Math.floor(Math.random() * opals.length)];
+          draws[idx] = { rar: "opal", card: oc };
+        }
+      }
+
+      const hasOpal = draws.some(d => d.rar === "opal");
+      setLS(LS_NO_OPAL_STREAK_KEY, hasOpal ? 0 : (streak + 1));
+
       return draws;
     }
 
@@ -2295,6 +2358,10 @@
     function openPack(){
       if(opened) return;
 
+      // ✅ (요청1) n트 누적
+      setLS(LS_ATTEMPT_KEY, getLS(LS_ATTEMPT_KEY) + 1);
+      renderAttempt();
+
       openedResults = [];
       queue = generatePack5();
       opened = false;
@@ -2347,8 +2414,8 @@
       els.cardImg.src = draw.card.img;
       els.cardImg.onerror = () => {
         console.error("[IMG 404] card:", draw.card.img);
-        // ✅ 테스트 중 일부만 올려도 '진행'은 되게 placeholder 표시
-        els.cardImg.src = PLACEHOLDER_CARD;
+        // ✅ (요청3) 카드명 placeholder
+        els.cardImg.src = makePlaceholder(labelOf(draw));
       };
 
       flashColor(rar);
@@ -2371,7 +2438,7 @@
       const img = document.createElement("img");
       img.src = draw.card.img;
       img.alt = `${draw.rar} ${draw.card.teamAbbr} ${draw.card.name}`;
-      img.onerror = () => { img.src = PLACEHOLDER_CARD; };
+      img.onerror = () => { img.src = makePlaceholder(labelOf(draw)); }; // ✅ (요청3)
       d.appendChild(img);
       return d;
     }
@@ -2379,6 +2446,7 @@
     function showResults(){
       els.resultGrid.innerHTML = "";
       openedResults.forEach(draw => els.resultGrid.appendChild(buildThumb(draw)));
+      renderAttempt(); // ✅ (요청1) 모달 열릴 때도 최신 n트
       els.modal.classList.add("on");
     }
 
@@ -2397,6 +2465,8 @@
       els.packCard.style.opacity = 1;
 
       els.clickCatcher.classList.remove("on");
+      // ❌ attempt / streak는 리셋 안 함 (요청사항: 누적)
+      renderAttempt();
     }
 
     // 이번에 뽑은 5장의 "카드 이미지"를 한 장의 PNG로 합쳐 저장
@@ -2407,19 +2477,21 @@
           return;
         }
 
-        const load = (src)=>new Promise((resolve)=>{
+        const load = (src, fallbackLabel)=>new Promise((resolve)=>{
           const img = new Image();
           img.crossOrigin = "anonymous";
           img.onload = ()=> resolve(img);
           img.onerror = ()=> {
-            const fallback = new Image();
-            fallback.onload = ()=> resolve(fallback);
-            fallback.src = PLACEHOLDER_CARD;
+            const fb = new Image();
+            fb.onload = ()=> resolve(fb);
+            fb.src = makePlaceholder(fallbackLabel); // ✅ (요청3)
           };
           img.src = src;
         });
 
-        const imgs = await Promise.all(openedResults.map(d => load(d.card.img)));
+        const imgs = await Promise.all(
+          openedResults.map(d => load(d.card.img, labelOf(d)))
+        );
 
         const pad = 28;
         const gap = 18;
@@ -2522,6 +2594,7 @@
     els.btnSave.addEventListener("click", saveResultAsImage);
 
     // start
+    renderAttempt();
     resetToStart();
   </script>
 </body>
