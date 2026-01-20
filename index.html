@@ -1,0 +1,2629 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Pack</title>
+  <style>
+    :root{
+      --bg1:#06070b;
+      --bg2:#0b1222;
+      --text: rgba(255,255,255,.92);
+
+      --silverGlow: rgba(190,206,220,.22);
+      --goldGlow: rgba(255,211,107,.25);
+      --coralGlow: rgba(255,127,160,.28);
+      --opalGlow: rgba(159,243,255,.22);
+
+      --coralText:#ff7fa0;
+    }
+
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      overflow:hidden;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Noto Sans KR", Arial, sans-serif;
+      color: var(--text);
+      background:
+        radial-gradient(1200px 700px at 60% -10%, rgba(120,160,255,.18), transparent 60%),
+        radial-gradient(900px 700px at 85% 10%, rgba(255,120,210,.12), transparent 62%),
+        linear-gradient(180deg, var(--bg1), var(--bg2));
+      user-select:none;
+    }
+
+    /* full-screen flash */
+    #flash{
+      position:fixed; inset:0; pointer-events:none; opacity:0; z-index:999;
+      mix-blend-mode: screen;
+    }
+    #flash.play{ animation: flashPop 520ms ease-out forwards; }
+    @keyframes flashPop{ 0%{opacity:0} 15%{opacity:.85} 100%{opacity:0} }
+
+    /* fullscreen stage centered */
+    .stage{
+      position:fixed; inset:0;
+      display:grid;
+      place-items:center;
+    }
+
+    /* click catcher after open (reveals next card) */
+    .clickCatcher{
+      position:fixed; inset:0;
+      z-index:30;
+      cursor:pointer;
+      display:none;
+    }
+    .clickCatcher.on{ display:block; }
+
+    /* pack */
+    .packCard{
+      width:min(360px, 70vw);
+      aspect-ratio: 2/3;
+      display:grid; place-items:center;
+      filter: drop-shadow(0 26px 32px rgba(0,0,0,.55));
+      cursor:pointer;
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%,-50%);
+      z-index:10;
+      opacity:1;
+      touch-action: manipulation;
+    }
+    .packCard img{width:100%;height:100%;object-fit:contain;display:block;}
+
+    .packCard.opening{
+      cursor:default;
+      animation: packDropFade 980ms cubic-bezier(.2,.85,.2,1) forwards;
+    }
+    @keyframes packDropFade{
+      0%{transform: translate(-50%,-50%) translateY(0) scale(1); opacity:1}
+      70%{transform: translate(-50%,-50%) translateY(220px) scale(.985); opacity:.35}
+      100%{transform: translate(-50%,-50%) translateY(320px) scale(.97); opacity:0}
+    }
+
+    /* reveal slot (same center as pack) */
+    .slot{
+      width:min(520px, 86vw);
+      aspect-ratio: 2.3/3;
+      position:absolute;
+      left:50%; top:50%;
+      transform: translate(-50%,-50%);
+      display:grid;
+      place-items:center;
+      z-index:20;
+      pointer-events:none;
+    }
+
+    /* prelude (coral/opal only) sequential: logo -> pos -> rarity */
+    .prelude{
+      position:absolute; inset:0;
+      display:grid; place-items:center;
+      pointer-events:none;
+      z-index:60;
+      opacity:0;
+      transition: opacity 200ms ease;
+    }
+    .prelude.show{ opacity:1; }
+
+    .preludeStack{
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:center;
+      gap:18px;
+      transform: translateY(-6px);
+      text-align:center;
+    }
+
+    .step{
+      display:none;
+      opacity:0;
+      transform: translateY(10px) scale(.98);
+    }
+    .step.on{
+      display:block;
+      animation: stepIn 520ms cubic-bezier(.2,.9,.2,1) forwards;
+    }
+    @keyframes stepIn{
+      0%{opacity:0; transform: translateY(14px) scale(.98)}
+      100%{opacity:1; transform: translateY(0) scale(1)}
+    }
+
+    /* 로고는 512 원본 크기(최대 512), 반응형으로 줄어듦 */
+    .teamLogo{
+      width: min(512px, 72vw);
+      height:auto;
+      object-fit:contain;
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.45));
+    }
+
+    /* 폰트 크게 */
+    .posText{
+      font-weight:1000;
+      letter-spacing:6px;
+      font-size: clamp(44px, 7vw, 84px);
+      line-height:1;
+      text-shadow: 0 10px 28px rgba(0,0,0,.45);
+    }
+    .rarText{
+      font-weight:1000;
+      letter-spacing:6px;
+      font-size: clamp(40px, 6.5vw, 76px);
+      line-height:1;
+      text-transform: uppercase;
+      text-shadow: 0 10px 28px rgba(0,0,0,.45);
+    }
+    .rarText.coral{ color: var(--coralText); text-shadow: 0 0 22px rgba(255,127,160,.55), 0 10px 28px rgba(0,0,0,.45); }
+    .rarText.opal{
+      background: linear-gradient(90deg, rgba(255,182,255,.95), rgba(159,243,255,.95), rgba(255,240,120,.95), rgba(255,182,255,.95));
+      -webkit-background-clip:text; background-clip:text; color: transparent;
+      text-shadow: 0 0 22px rgba(159,243,255,.35), 0 10px 28px rgba(0,0,0,.45);
+    }
+
+    /* card */
+    .cardWrap{
+      width:100%; height:100%;
+      border-radius: 0; /* 둥근 모서리 제거 */
+      position:relative;
+      overflow:hidden;
+      transform: scale(.90);
+      opacity:0;
+      filter: drop-shadow(0 26px 34px rgba(0,0,0,.55));
+      z-index:40;
+      pointer-events:none;
+    }
+    .cardWrap.show{ animation: cardIn 520ms cubic-bezier(.2,.9,.2,1) forwards; }
+    @keyframes cardIn{
+      0%{transform: scale(.88) translateY(18px); opacity:0}
+      100%{transform: scale(1) translateY(0); opacity:1}
+    }
+    .cardWrap .img{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit:contain;   /* 전체가 다 보이게 */
+      background: rgba(255,255,255,.05);
+    }
+
+    /* rarity glows */
+    .cardWrap.silver{ box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 28px var(--silverGlow), 0 0 60px rgba(190,206,220,.14); }
+    .cardWrap.gold{   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 36px var(--goldGlow),   0 0 90px rgba(255,211,107,.18); }
+    .cardWrap.coral{  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 0 44px var(--coralGlow),  0 0 120px rgba(255,80,125,.20); }
+    .cardWrap.opal{   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 54px var(--opalGlow),   0 0 150px rgba(255,182,255,.20); }
+
+    /* animated glow (gold/coral/opal) */
+    .cardWrap.gold::after, .cardWrap.coral::after, .cardWrap.opal::after{
+      content:"";
+      position:absolute;
+      inset:-60%;
+      pointer-events:none;
+      mix-blend-mode: screen;
+      animation: spin 1.4s linear infinite;
+      opacity:.9;
+    }
+    .cardWrap.gold::after{
+      background: conic-gradient(from 120deg, rgba(255,211,107,.0), rgba(255,211,107,.25), rgba(255,211,107,.0), rgba(255,211,107,.18), rgba(255,211,107,.0));
+    }
+    .cardWrap.coral::after{
+      background:
+        radial-gradient(circle at 25% 35%, rgba(255,159,179,.55), transparent 55%),
+        radial-gradient(circle at 70% 55%, rgba(255,79,123,.40), transparent 60%),
+        conic-gradient(from 60deg, rgba(255,255,255,0), rgba(255,255,255,.18), rgba(255,255,255,0));
+    }
+    .cardWrap.opal::after{
+      background: conic-gradient(from 0deg,
+        rgba(255,  0,180,.0),
+        rgba(140, 80,255,.35),
+        rgba( 70,220,255,.35),
+        rgba(120,255,160,.28),
+        rgba(255,240,120,.30),
+        rgba(255,120,200,.35),
+        rgba(140, 80,255,.35));
+      opacity:1;
+    }
+    @keyframes spin{ from{transform: rotate(0deg)} to{transform: rotate(360deg)} }
+
+    /* Prism scan line (coral/opal only) */
+    .scan{
+      position:absolute;
+      inset:-20%;
+      opacity:0;
+      pointer-events:none;
+      z-index:70;
+      mix-blend-mode: screen;
+      filter: blur(.2px);
+    }
+    .scan.play{ animation: scanMove 900ms ease-out forwards; }
+    @keyframes scanMove{
+      0%{opacity:0; transform: translate(-35%, -25%) rotate(18deg)}
+      15%{opacity:.95}
+      100%{opacity:0; transform: translate(35%, 25%) rotate(18deg)}
+    }
+    .scan::before{
+      content:"";
+      position:absolute;
+      inset:0;
+      background:
+        linear-gradient(90deg,
+          rgba(255,255,255,0),
+          rgba(255,255,255,.05) 18%,
+          rgba(255,255,255,.55) 35%,
+          rgba(255,240,120,.25) 44%,
+          rgba(159,243,255,.25) 55%,
+          rgba(255,182,255,.25) 66%,
+          rgba(255,255,255,.40) 78%,
+          rgba(255,255,255,0));
+    }
+
+    /* RESULT MODAL */
+    .modal{
+      position:fixed; inset:0;
+      display:none;
+      place-items:center;
+      z-index:2000;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(10px);
+    }
+    .modal.on{ display:grid; }
+
+    .panel{
+      width:min(1100px, 94vw);
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.12);
+      background: rgba(10,12,18,.72);
+      box-shadow: 0 24px 80px rgba(0,0,0,.55);
+      padding:18px 16px 16px;
+    }
+    .panelTop{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:14px;
+    }
+    .panelTitle{
+      font-weight:1000;
+      letter-spacing:.3px;
+      font-size:16px;
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    /* ✅ (요청1) n트 표시 배지 */
+    .attemptBadge{
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:1000;
+      font-size:13px;
+      background:rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.16);
+    }
+
+    .btns{ display:flex; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.16);
+      background: linear-gradient(180deg, rgba(255,255,255,.10), rgba(255,255,255,.06));
+      color:var(--text);
+      border-radius:14px;
+      padding:10px 14px;
+      font-weight:1000;
+      cursor:pointer;
+      letter-spacing:.2px;
+      transition: transform .08s ease, border-color .2s ease;
+      user-select:none;
+      white-space:nowrap;
+    }
+    .btn:hover{ border-color: rgba(255,255,255,.28); }
+    .btn:active{ transform: translateY(1px) scale(.99); }
+
+    .grid{
+      display:grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap:12px;
+    }
+    @media (max-width:980px){
+      .grid{ grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+
+    .thumb{
+      aspect-ratio: 2/3;
+      border-radius:0; /* 둥근 모서리 제거 */
+      overflow:hidden;
+      position:relative;
+      background: rgba(255,255,255,.05);
+      filter: drop-shadow(0 18px 28px rgba(0,0,0,.45));
+    }
+    .thumb img{ width:100%; height:100%; object-fit: contain !important; display:block; }
+
+    .thumb.silver{ box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 18px var(--silverGlow), 0 0 46px rgba(190,206,220,.12); }
+    .thumb.gold{   box-shadow: 0 0 0 1px rgba(255,255,255,.10) inset, 0 0 22px var(--goldGlow),   0 0 64px rgba(255,211,107,.16); }
+    .thumb.coral{  box-shadow: 0 0 0 1px rgba(255,255,255,.12) inset, 0 0 26px var(--coralGlow),  0 0 84px rgba(255,80,125,.18); }
+    .thumb.opal{   box-shadow: 0 0 0 1px rgba(255,255,255,.14) inset, 0 0 30px var(--opalGlow),   0 0 100px rgba(255,182,255,.18); }
+  </style>
+</head>
+<body>
+  <div id="flash"></div>
+
+  <div class="stage">
+    <div class="slot" aria-hidden="true">
+      <div class="prelude" id="prelude">
+        <div class="preludeStack">
+          <img class="teamLogo step" id="stepLogo" alt="logo" />
+          <div class="posText step" id="stepPos">SP</div>
+          <div class="rarText step" id="stepRar">CORAL</div>
+        </div>
+      </div>
+
+      <div class="cardWrap" id="cardWrap">
+        <div class="scan" id="scan"></div>
+        <img class="img" id="cardImg" alt="card" />
+      </div>
+    </div>
+
+    <div class="packCard" id="packCard" title="터치해서 팩 오픈">
+      <img src="pack.png" alt="pack" />
+    </div>
+
+    <div class="clickCatcher" id="clickCatcher"></div>
+  </div>
+
+  <!-- Result Modal -->
+  <div class="modal" id="modal">
+    <div class="panel">
+      <div class="panelTop">
+        <!-- ✅ (요청1) 결과 n트 -->
+        <div class="panelTitle">결과 <span id="attemptBadge" class="attemptBadge">1트</span></div>
+        <div class="btns">
+          <button class="btn" id="btnSave">결과 저장하기 (이미지)</button>
+          <button class="btn" id="btnRetry">다시 뽑기</button>
+        </div>
+      </div>
+      <div class="grid" id="resultGrid"></div>
+    </div>
+  </div>
+
+  <script>
+    // ===============================
+    // CONFIG
+    // ===============================
+    const SEASON = "57";
+
+    // ✅ 적용 요청: 등급별 확률(가중치) 변경
+    // 총합 100 기준 느낌으로: silver 72% / gold 20% / coral 5% / opal 3%
+    const RARITY_WEIGHT = { silver: 72, gold: 20, coral: 5, opal: 3 };
+
+    // ===============================
+    // ✅ (요청1/2) LOCAL STORAGE: n트, 오팔 천장(50)
+    // ===============================
+    const LS_ATTEMPT_KEY = "rkbo_attempt_count";
+    const LS_NO_OPAL_STREAK_KEY = "rkbo_no_opal_streak";
+    const LS_RESET_NEXT_ATTEMPT_KEY = "rkbo_reset_attempt_next";
+
+// NaN 방어: 저장값이 깨졌으면 즉시 복구
+if(!Number.isFinite(getLS(LS_NO_OPAL_STREAK_KEY))) setLS(LS_NO_OPAL_STREAK_KEY, 0);
+if(!Number.isFinite(getLS(LS_ATTEMPT_KEY))) setLS(LS_ATTEMPT_KEY, 0);
+
+
+    const getLS = (k) => {
+  const v = localStorage.getItem(k);
+  const n = parseInt(v ?? "0", 10);
+  return Number.isFinite(n) ? n : 0;
+};
+    const setLS = (k,v)=> localStorage.setItem(k, String(v));
+
+    function renderAttempt(){
+      const el = document.getElementById("attemptBadge");
+      if(!el) return;
+      const n = Math.max(1, getLS(LS_ATTEMPT_KEY));
+      el.textContent = `${n}트`;
+    }
+
+    // ===============================
+    // ✅ (요청3) MISSING IMAGE → 카드명 표시 placeholder
+    // ===============================
+    function makePlaceholder(label){
+      const t = String(label || "UNKNOWN").slice(0, 48);
+      const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="800" height="1200">
+          <defs>
+            <linearGradient id="g" x1="0" x2="0" y1="0" y2="1">
+              <stop offset="0" stop-color="#0b1222"/>
+              <stop offset="1" stop-color="#06070b"/>
+            </linearGradient>
+          </defs>
+          <rect width="100%" height="100%" fill="url(#g)"/>
+          <rect x="40" y="40" width="720" height="1120"
+            fill="rgba(255,255,255,0.05)"
+            stroke="rgba(255,255,255,0.18)" stroke-width="2"/>
+          <text x="400" y="575" fill="rgba(255,255,255,0.92)"
+            font-size="34" text-anchor="middle"
+            font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            ${t}
+          </text>
+          <text x="400" y="645" fill="rgba(255,255,255,0.55)"
+            font-size="22" text-anchor="middle"
+            font-family="system-ui, -apple-system, Segoe UI, Roboto, Arial">
+            (image missing)
+          </text>
+        </svg>`;
+      return "data:image/svg+xml;charset=utf-8," + encodeURIComponent(svg.trim());
+    }
+
+    function labelOf(draw){
+      const team = draw?.card?.teamAbbr ?? "";
+      const pos  = draw?.card?.pos ?? "";
+      const name = draw?.card?.name ?? "";
+      const rar  = String(draw?.rar ?? "").toUpperCase();
+      return `${team} ${pos} ${name} (${rar})`.trim();
+    }
+
+    const CARD_POOL = [
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "3B",
+        name: "baesiyun",
+        img: "cards/57_LG_baesiyun_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "C",
+        name: "catcherlg",
+        img: "cards/57_LG_catcherlg_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LG",
+        pos: "2B",
+        name: "choiseonghojjr.",
+        img: "cards/57_LG_choiseonghojjr._GOLD.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "CF",
+        name: "doncicluka",
+        img: "cards/57_LG_doncicluka_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RF",
+        name: "goseungmin",
+        img: "cards/57_LG_goseungmin_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "CF",
+        name: "jackjack",
+        img: "cards/57_LG_jackjack_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LG",
+        pos: "1B",
+        name: "jipyeongmakgeolli",
+        img: "cards/57_LG_jipyeongmakgeolli_CORAL.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LG",
+        pos: "2B",
+        name: "leejaejr.",
+        img: "cards/57_LG_leejaejr._GOLD.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LG",
+        pos: "3B",
+        name: "lgjimenez",
+        img: "cards/57_LG_lgjimenez_CORAL.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "LF",
+        name: "leejeong-sik",
+        img: "cards/57_LG_leejeong-sik_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LG",
+        pos: "RF",
+        name: "minkyung-ah",
+        img: "cards/57_LG_minkyung-ah_GOLD.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SS",
+        name: "parkseonghan",
+        img: "cards/57_LG_parkseonghan_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LG",
+        pos: "C",
+        name: "whynoja",
+        img: "cards/57_LG_whynoja_GOLD.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "C",
+        name: "yoonseo-yeon",
+        img: "cards/57_LG_yoonseo-yeon_SILVER.png",
+        logo: "logos/LG.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SS",
+        name: "chohyewon",
+        img: "cards/57_DOO_chohyewon_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "DOO",
+        pos: "CF",
+        name: "choiji-hoon",
+        img: "cards/57_DOO_choiji-hoon_CORAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "2B",
+        name: "chunsik",
+        img: "cards/57_DOO_chunsik_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "SS",
+        name: "doosanminnie",
+        img: "cards/57_DOO_doosanminnie_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "RF",
+        name: "gfsowon",
+        img: "cards/57_DOO_gfsowon_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "DOO",
+        pos: "LF",
+        name: "gukmiho",
+        img: "cards/57_DOO_gukmiho_OPAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SS",
+        name: "hancochi",
+        img: "cards/57_DOO_hancochi_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "DOO",
+        pos: "C",
+        name: "huzdfm",
+        img: "cards/57_DOO_huzdfm_CORAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "DOO",
+        pos: "3B",
+        name: "kimain",
+        img: "cards/57_DOO_kimain_CORAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "2B",
+        name: "kimdo-yeong",
+        img: "cards/57_DOO_kimdo-yeong_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RF",
+        name: "leejuny",
+        img: "cards/57_DOO_leejuny_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "DOO",
+        pos: "LF",
+        name: "parksanghyun",
+        img: "cards/57_DOO_parksanghyun_CORAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "C",
+        name: "quicksilver",
+        img: "cards/57_DOO_quicksilver_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "1B",
+        name: "taeyeon",
+        img: "cards/57_DOO_taeyeon_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "2B",
+        name: "baejihwan",
+        img: "cards/57_HAN_baejihwan_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "C",
+        name: "catcherhanwha",
+        img: "cards/57_HAN_catcherhanwha_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "C",
+        name: "cpacoke",
+        img: "cards/57_HAN_cpacoke_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "3B",
+        name: "debisdeb",
+        img: "cards/57_HAN_debisdeb_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "SS",
+        name: "jangkyujin",
+        img: "cards/57_HAN_jangkyujin_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "RF",
+        name: "jangwonyoung",
+        img: "cards/57_HAN_jangwonyoung_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "1B",
+        name: "jomingi",
+        img: "cards/57_HAN_jomingi_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "RF",
+        name: "kendricklamarduckworth",
+        img: "cards/57_HAN_kendricklamarduckworth_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "1B",
+        name: "nanamichiaki",
+        img: "cards/57_HAN_nanamichiaki_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "HAN",
+        pos: "LF",
+        name: "rohjeong-eui",
+        img: "cards/57_HAN_rohjeong-eui_CORAL.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "HAN",
+        pos: "2B",
+        name: "ruudgullitjr.",
+        img: "cards/57_HAN_ruudgullitjr._CORAL.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "LF",
+        name: "sonyoungseojr.",
+        img: "cards/57_HAN_sonyoungseojr._SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "CF",
+        name: "shirayukihina",
+        img: "cards/57_HAN_shirayukihina_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "SS",
+        name: "baejinsol",
+        img: "cards/57_KIA_baejinsol_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "SS",
+        name: "biergsen",
+        img: "cards/57_KIA_biergsen_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "C",
+        name: "fivefivetaunt",
+        img: "cards/57_KIA_fivefivetaunt_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "CF",
+        name: "illitmoka",
+        img: "cards/57_KIA_illitmoka_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "1B",
+        name: "jeongleean",
+        img: "cards/57_KIA_jeongleean_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "LF",
+        name: "kimheongon",
+        img: "cards/57_KIA_kimheongon_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "2B",
+        name: "leesiyeon",
+        img: "cards/57_KIA_leesiyeon_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "RF",
+        name: "moonsung-ju",
+        img: "cards/57_KIA_moonsung-ju_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "KIA",
+        pos: "3B",
+        name: "simfather",
+        img: "cards/57_KIA_simfather_GOLD.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "KIA",
+        pos: "C",
+        name: "voine",
+        img: "cards/57_KIA_voine_OPAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "SS",
+        name: "vlichanjang",
+        img: "cards/57_KIA_vlichanjang_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "KIA",
+        pos: "1B",
+        name: "yangalin",
+        img: "cards/57_KIA_yangalin_GOLD.png",
+        logo: "logos/KIA.png"
+      },
+
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "CF",
+        name: "aimi",
+        img: "cards/57_LOT_aimi_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "1B",
+        name: "goyounjung",
+        img: "cards/57_LOT_goyounjung_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "LF",
+        name: "gumin-sung",
+        img: "cards/57_LOT_gumin-sung_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "C",
+        name: "gungnoma",
+        img: "cards/57_LOT_gungnoma_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "SS",
+        name: "hansohee",
+        img: "cards/57_LOT_hansohee_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "2B",
+        name: "kimju-won",
+        img: "cards/57_LOT_kimju-won_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "3B",
+        name: "kimminchanjr.",
+        img: "cards/57_LOT_kimminchanjr._SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "3B",
+        name: "lottesimeone",
+        img: "cards/57_LOT_lottesimeone_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "1B",
+        name: "leeseungjae",
+        img: "cards/57_LOT_leeseungjae_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "LOT",
+        pos: "CF",
+        name: "parkyeong-gil",
+        img: "cards/57_LOT_parkyeong-gil_OPAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "LOT",
+        pos: "C",
+        name: "penguinyongsagi",
+        img: "cards/57_LOT_penguinyongsagi_OPAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "2B",
+        name: "ryugangpyeongjr.",
+        img: "cards/57_LOT_ryugangpyeongjr._SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "2B",
+        name: "illitwonhee",
+        img: "cards/57_LOT_illitwonhee_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "RF",
+        name: "gumiho",
+        img: "cards/57_NC_gumiho_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "C",
+        name: "gwakseong-su",
+        img: "cards/57_NC_gwakseong-su_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "NC",
+        pos: "2B",
+        name: "haku",
+        img: "cards/57_NC_haku_OPAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "NC",
+        pos: "3B",
+        name: "jeonso-min",
+        img: "cards/57_NC_jeonso-min_OPAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "NC",
+        pos: "CF",
+        name: "kikuchimakoto",
+        img: "cards/57_NC_kikuchimakoto_CORAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "CF",
+        name: "kimdongminjr.",
+        img: "cards/57_NC_kimdongminjr._GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "CF",
+        name: "kimyooyeon",
+        img: "cards/57_NC_kimyooyeon_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "CF",
+        name: "leeseongwoojr.",
+        img: "cards/57_NC_leeseongwoojr._SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "LF",
+        name: "limsky",
+        img: "cards/57_NC_limsky_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "LF",
+        name: "ncaion",
+        img: "cards/57_NC_ncaion_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "SS",
+        name: "parkheebeom",
+        img: "cards/57_NC_parkheebeom_GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "3B",
+        name: "parkjeonghun",
+        img: "cards/57_NC_parkjeonghun_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "NC",
+        pos: "1B",
+        name: "ryusujeong",
+        img: "cards/57_NC_ryusujeong_CORAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "C",
+        name: "soorin",
+        img: "cards/57_NC_soorin_GOLD.png",
+        logo: "logos/NC.png"
+      },
+
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "2B",
+        name: "chocap",
+        img: "cards/57_SAM_chocap_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SAM",
+        pos: "CF",
+        name: "hwangdae-in",
+        img: "cards/57_SAM_hwangdae-in_GOLD.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "C",
+        name: "itzyyuna",
+        img: "cards/57_SAM_itzyyuna_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "C",
+        name: "joyoori",
+        img: "cards/57_SAM_joyoori_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "LF",
+        name: "koojawoook",
+        img: "cards/57_SAM_koojawoook_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "3B",
+        name: "leejinyoung",
+        img: "cards/57_SAM_leejinyoung_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "CF",
+        name: "leenamyoonjr.",
+        img: "cards/57_SAM_leenamyoonjr._SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "CF",
+        name: "leesang",
+        img: "cards/57_SAM_leesang_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "RF",
+        name: "markakisnick",
+        img: "cards/57_SAM_markakisnick_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "1B",
+        name: "nohji-sun",
+        img: "cards/57_SAM_nohji-sun_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "SAM",
+        pos: "SS",
+        name: "ohyes",
+        img: "cards/57_SAM_ohyes_OPAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "SS",
+        name: "turnertrea",
+        img: "cards/57_SAM_turnertrea_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "SAM",
+        pos: "3B",
+        name: "yuash",
+        img: "cards/57_SAM_yuash_OPAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "3B",
+        name: "todayiswendy",
+        img: "cards/57_SAM_todayiswendy_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "C",
+        name: "catcherssg",
+        img: "cards/57_SSG_catcherssg_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SS",
+        name: "choiyeeun",
+        img: "cards/57_SSG_choiyeeun_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "3B",
+        name: "dongtanmom",
+        img: "cards/57_SSG_dongtanmom_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "1B",
+        name: "jeongyunseokjr.",
+        img: "cards/57_SSG_jeongyunseokjr._GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SS",
+        name: "joguri",
+        img: "cards/57_SSG_joguri_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "LF",
+        name: "jungsunwoong",
+        img: "cards/57_SSG_jungsunwoong_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "SS",
+        name: "kimaseong",
+        img: "cards/57_SSG_kimaseong_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SS",
+        name: "kimjungwoo",
+        img: "cards/57_SSG_kimjungwoo_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "RF",
+        name: "kimminji",
+        img: "cards/57_SSG_kimminji_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "RF",
+        name: "leesaerom",
+        img: "cards/57_SSG_leesaerom_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "C",
+        name: "leezenthatsok",
+        img: "cards/57_SSG_leezenthatsok_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "LF",
+        name: "newjinsu",
+        img: "cards/57_SSG_newjinsu_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "C",
+        name: "rohyoonseo",
+        img: "cards/57_SSG_rohyoonseo_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "LF",
+        name: "takoyakki",
+        img: "cards/57_SSG_takoyakki_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SP",
+        name: "alfull",
+        img: "cards/57_LG_alfull_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SP",
+        name: "clicheshibuki",
+        img: "cards/57_LG_clicheshibuki_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SP",
+        name: "fukutomitsuki",
+        img: "cards/57_LG_fukotomitsuki_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "godcloud",
+        img: "cards/57_LG_godcloud_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SP",
+        name: "ikhowoljr.",
+        img: "cards/57_LG_ikhowoljr._SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "iochimari",
+        img: "cards/57_LG_iochimari_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "kanghyunkyu",
+        img: "cards/57_LG_kanghyunkyu_GOLD.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "kimdae-woo",
+        img: "cards/57_LG_kimdae-woo_CORAL.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "kimjeong-rockjr.",
+        img: "cards/57_LG_kimjeong-rockjr._SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "kimmingyu",
+        img: "cards/57_LG_kimmingyu_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "lgliz",
+        img: "cards/57_LG_lgliz_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "nmixxlily",
+        img: "cards/57_LG_nmixxlily_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "SP",
+        name: "ohhaewon",
+        img: "cards/57_LG_ohhaewon_SILVER.png",
+        logo: "logos/LG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LG",
+        pos: "RP",
+        name: "seonwoolimjr.",
+        img: "cards/57_LG_seonwoolimjr._SILVER.png",
+        logo: "logos/LG.png"
+      },
+
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "alimuhammad",
+        img: "cards/57_DOO_alimuhammad_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SP",
+        name: "ballnansa",
+        img: "cards/57_DOO_ballnansa_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "SP",
+        name: "doosanmiyeon",
+        img: "cards/57_DOO_doosanmiyeon_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "fubao",
+        img: "cards/57_DOO_fubao_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "godchangseop",
+        img: "cards/57_DOO_godchangseop_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "hongeunchae",
+        img: "cards/57_DOO_hongeunchae_GOLD.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SP",
+        name: "jingburger",
+        img: "cards/57_DOO_jingburger_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "leealdojr.",
+        img: "cards/57_DOO_leealdojr._SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "leejooyeong",
+        img: "cards/57_DOO_leejooyeong_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SP",
+        name: "naoirei",
+        img: "cards/57_DOO_naoirei_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "soobak",
+        img: "cards/57_DOO_soobak_CORAL.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "RP",
+        name: "yumyoungjin",
+        img: "cards/57_DOO_yumyoungjin_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "DOO",
+        pos: "SP",
+        name: "dalchong",
+        img: "cards/57_DOO_dalchong_SILVER.png",
+        logo: "logos/DOO.png"
+      },
+
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "arbbano",
+        img: "cards/57_HAN_arbbano_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "amongus",
+        img: "cards/57_HAN_amongus_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "bangbts",
+        img: "cards/57_HAN_bangbts_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "forestnottingham",
+        img: "cards/57_HAN_forestnottingham_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "SP",
+        name: "hanwhaahyeon",
+        img: "cards/57_HAN_hanwhaahyeon_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "honeyging",
+        img: "cards/57_HAN_honeyging_OPAL.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "SP",
+        name: "inging",
+        img: "cards/57_HAN_inging_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "SP",
+        name: "jangnayoung",
+        img: "cards/57_HAN_jangnayoung_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "jeonsehan",
+        img: "cards/57_HAN_jeonsehan_CORAL.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "koreauniv",
+        img: "cards/57_HAN_koreauniv_GOLD.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "HAN",
+        pos: "SP",
+        name: "onestone",
+        img: "cards/57_HAN_onestone_CORAL.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "SP",
+        name: "seolyoona",
+        img: "cards/57_HAN_seolyoona_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "HAN",
+        pos: "RP",
+        name: "sungminkyu",
+        img: "cards/57_HAN_sungminkyu_SILVER.png",
+        logo: "logos/HAN.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "aceairin",
+        img: "cards/57_KIA_aceairin_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "SP",
+        name: "elclear",
+        img: "cards/57_KIA_elclear_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "gorani",
+        img: "cards/57_KIA_gorani_OPAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "gosegu",
+        img: "cards/57_KIA_gosegu_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "hanakonana",
+        img: "cards/57_KIA_hanakonana_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "SP",
+        name: "jururuisd",
+        img: "cards/57_KIA_jururuisd_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "jeongyu-shin",
+        img: "cards/57_KIA_jeongyu-shin_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "lilpaaaaaa",
+        img: "cards/57_KIA_lilpaaaaaa_SILVER.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "limm.z",
+        img: "cards/57_KIA_limm.z_GOLD.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "KIA",
+        pos: "SP",
+        name: "parkjihyo",
+        img: "cards/57_KIA_parkjihyo_GOLD.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "SP",
+        name: "parksunga",
+        img: "cards/57_KIA_parksunga_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "portergaddo",
+        img: "cards/57_KIA_portergaddo_GOLD.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "KIA",
+        pos: "RP",
+        name: "williambenson",
+        img: "cards/57_KIA_williambenson_OPAL.png",
+        logo: "logos/KIA.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "KIA",
+        pos: "SP",
+        name: "yoogyeongsu",
+        img: "cards/57_KIA_yoogyeongsu_CORAL.png",
+        logo: "logos/KIA.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "blackwidow",
+        img: "cards/57_LOT_blackwidow_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "cherryfilter",
+        img: "cards/57_LOT_cherryfilter_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "fxiiii",
+        img: "cards/57_LOT_fxiiii_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "SP",
+        name: "kimkyuhyeonjr.",
+        img: "cards/57_LOT_kimkyuhyeonjr._SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "kimwonjung",
+        img: "cards/57_LOT_kimwonjung_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "SP",
+        name: "leesohan",
+        img: "cards/57_LOT_leesohan_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "SP",
+        name: "machinegeon",
+        img: "cards/57_LOT_machinegeon_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "mintpanda",
+        img: "cards/57_LOT_mintpanda_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "LOT",
+        pos: "SP",
+        name: "nagayoshisubaru",
+        img: "cards/57_LOT_nagayoshisubaru_CORAL.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "LOT",
+        pos: "SP",
+        name: "pupacosta",
+        img: "cards/57_LOT_pupacosta_GOLD.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "redhouse",
+        img: "cards/57_LOT_redhouse_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "sinsangwoo",
+        img: "cards/57_LOT_sinsangwoo_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "LOT",
+        pos: "RP",
+        name: "woorung",
+        img: "cards/57_LOT_woorung_SILVER.png",
+        logo: "logos/LOT.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "SP",
+        name: "byeorong",
+        img: "cards/57_NC_byeorong_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "SP",
+        name: "choyihyun",
+        img: "cards/57_NC_choyihyun_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "codyponce",
+        img: "cards/57_NC_codyponce_GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "frierenfreezing",
+        img: "cards/57_NC_frierenfreezing_CORAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "SP",
+        name: "goae-sin",
+        img: "cards/57_NC_goae-sin_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "jehunn",
+        img: "cards/57_NC_jehunn_GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "kimbeob-jun",
+        img: "cards/57_NC_kimbeob-jun_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "limyoon-seo",
+        img: "cards/57_NC_limyoon-seo_GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "miyawakisakura",
+        img: "cards/57_NC_miyawakisakura_SILVER.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "nclineage",
+        img: "cards/57_NC_nclineage_OPAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "NC",
+        pos: "RP",
+        name: "seongyunggyeom",
+        img: "cards/57_NC_seongyunggyeom_CORAL.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "NC",
+        pos: "SP",
+        name: "yoonzr",
+        img: "cards/57_NC_yoonzr_GOLD.png",
+        logo: "logos/NC.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "NC",
+        pos: "SP",
+        name: "parkjoongjin",
+        img: "cards/57_NC_parkjoongjin_SILVER.png",
+        logo: "logos/NC.png"
+      },
+
+      {
+        rarity: "gold",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "bolsa",
+        img: "cards/57_SAM_bolsa_GOLD.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SAM",
+        pos: "SP",
+        name: "baechanseung",
+        img: "cards/57_SAM_baechanseung_GOLD.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "danteiii",
+        img: "cards/57_SAM_danteiii_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "godfourth",
+        img: "cards/57_SAM_godfourth_OPAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "grealishjack",
+        img: "cards/57_SAM_grealishjack_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "kamenrider",
+        img: "cards/57_SAM_kamenrider_OPAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "kiyomi",
+        img: "cards/57_SAM_kiyomi_SILVER.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "opal",
+        teamAbbr: "SAM",
+        pos: "SP",
+        name: "kimjiwoo",
+        img: "cards/57_SAM_kimjiwoo_OPAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "SP",
+        name: "kimseminjr.",
+        img: "cards/57_SAM_kimseminjr._CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "leedaeho",
+        img: "cards/57_SAM_leedaeho_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "SP",
+        name: "pujolsalbert",
+        img: "cards/57_SAM_pujolsalbert_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "ryusungwoojr.",
+        img: "cards/57_SAM_ryusungwoojr._GOLD.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SAM",
+        pos: "RP",
+        name: "sexysangwoo",
+        img: "cards/57_SAM_sexysangwoo_CORAL.png",
+        logo: "logos/SAM.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SAM",
+        pos: "SP",
+        name: "shinyeeun",
+        img: "cards/57_SAM_shinyeeun_GOLD.png",
+        logo: "logos/SAM.png"
+      },
+
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SP",
+        name: "akanelize",
+        img: "cards/57_SSG_akanelize_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "chocho",
+        img: "cards/57_SSG_chocho_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "choiminsu",
+        img: "cards/57_SSG_choiminsu_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SSG",
+        pos: "SP",
+        name: "gfriendeunha",
+        img: "cards/57_SSG_gfriendeunha_CORAL.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "jungyeolsim",
+        img: "cards/57_SSG_jungyeolsim_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SP",
+        name: "kimhyeonbeen",
+        img: "cards/57_SSG_kimhyeonbeen_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "kimjunseo",
+        img: "cards/57_SSG_kimjunseo_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "SP",
+        name: "kimsunny",
+        img: "cards/57_SSG_kimsunny_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "kunimihirojr.",
+        img: "cards/57_SSG_kunimihirojr._SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "gold",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "vivizsinb",
+        img: "cards/57_SSG_vivizsinb_GOLD.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "silver",
+        teamAbbr: "SSG",
+        pos: "RP",
+        name: "yoonchichi",
+        img: "cards/57_SSG_yoonchichi_SILVER.png",
+        logo: "logos/SSG.png"
+      },
+      {
+        rarity: "coral",
+        teamAbbr: "SSG",
+        pos: "SP",
+        name: "yuzuhariko",
+        img: "cards/57_SSG_yuzuhariko_CORAL.png",
+        logo: "logos/SSG.png"
+      }
+    ];
+
+    // ===============================
+    // STATE / ELS
+    // ===============================
+    const $ = (id)=>document.getElementById(id);
+    const els = {
+      flash: $("flash"),
+      packCard: $("packCard"),
+      clickCatcher: $("clickCatcher"),
+
+      prelude: $("prelude"),
+      stepLogo: $("stepLogo"),
+      stepPos: $("stepPos"),
+      stepRar: $("stepRar"),
+
+      cardWrap: $("cardWrap"),
+      cardImg: $("cardImg"),
+      scan: $("scan"),
+
+      modal: $("modal"),
+      resultGrid: $("resultGrid"),
+      btnSave: $("btnSave"),
+      btnRetry: $("btnRetry"),
+    };
+
+    let queue = [];
+    let opened = false;
+    let revealing = false;
+    let openedResults = []; // {rar, card}
+
+    // ===============================
+    // HELPERS
+    // ===============================
+    function normRarity(r){ return String(r || "").trim().toLowerCase(); }
+
+    function pickWeightedCard(){
+      const list = CARD_POOL
+        .map(c => ({ card: c, w: (RARITY_WEIGHT[normRarity(c.rarity)] ?? 0) }))
+        .filter(x => x.w > 0);
+
+      if(list.length === 0){
+        return CARD_POOL[Math.floor(Math.random() * CARD_POOL.length)];
+      }
+      const total = list.reduce((a,b)=>a+b.w,0);
+      let r = Math.random() * total;
+      for(const it of list){
+        r -= it.w;
+        if(r <= 0) return it.card;
+      }
+      return list[list.length - 1].card;
+    }
+
+// ✅ (요청2) 50천장 + (추가요청) 오팔 나오면 n트 초기화
+function generatePack5(){
+  const streak = getLS(LS_NO_OPAL_STREAK_KEY);     // 연속 오팔 실패 팩 수
+  const isPityPack = (streak >= 49);               // 이번이 50번째 팩이면 천장 발동
+
+  const draws = [];
+  for(let i=0;i<5;i++){
+    const card = pickWeightedCard();
+    draws.push({ rar: normRarity(card.rarity), card });
+  }
+
+  // 천장 발동이면 5장 중 1장을 오팔로 강제 교체
+  if(isPityPack){
+    const opalPool = CARD_POOL.filter(c => normRarity(c.rarity) === "opal");
+    if(opalPool.length > 0){
+      const forced = opalPool[Math.floor(Math.random() * opalPool.length)];
+      const idx = Math.floor(Math.random() * draws.length);
+      draws[idx] = { rar: "opal", card: forced };
+    }
+  }
+
+  // 이번 팩에 오팔이 있는지 체크
+  const hasOpal = draws.some(d => d.rar === "opal");
+
+  // 오팔 천장용 연속 실패 카운트 업데이트
+  setLS(LS_NO_OPAL_STREAK_KEY, hasOpal ? 0 : (streak + 1));
+
+  // ✅ 오팔 뽑으면 n트 카운트 초기화 (다음 팩부터 1트로 시작)
+  if(hasOpal){
+    setLS(LS_RESET_NEXT_ATTEMPT_KEY, 1);
+  }
+
+  return draws;
+}
+      
+    function flashColor(rar){
+      const colorMap = {
+        silver: "rgba(207,214,222,.65)",
+        gold:   "rgba(255,211,107,.75)",
+        coral:  "rgba(255,127,160,.75)",
+        opal:   "rgba(159,243,255,.70)",
+      };
+      els.flash.style.background = colorMap[rar] || "rgba(255,255,255,.6)";
+      els.flash.classList.remove("play");
+      void els.flash.offsetWidth;
+      els.flash.classList.add("play");
+    }
+
+    function applyRarity(rar){
+      els.cardWrap.classList.remove("silver","gold","coral","opal","show");
+      els.cardWrap.classList.add(rar);
+    }
+
+    function playScanIfNeeded(rar){
+      if(rar !== "coral" && rar !== "opal") return;
+      els.scan.classList.remove("play");
+      void els.scan.offsetWidth;
+      els.scan.classList.add("play");
+    }
+
+    function resetRevealVisual(){
+      els.prelude.classList.remove("show");
+
+      // ✅ 로고/카드 이미지 src도 같이 초기화 (이전 이미지 잔존 방지)
+      els.stepLogo.onerror = null;
+      els.stepLogo.removeAttribute("src");
+      els.cardImg.onerror = null;
+      els.cardImg.removeAttribute("src");
+
+      [els.stepLogo, els.stepPos, els.stepRar].forEach(el=>{
+        el.classList.remove("on");
+        el.style.display = "none";
+      });
+
+      els.cardWrap.classList.remove("show","silver","gold","coral","opal");
+
+      els.scan.classList.remove("play");
+    }
+
+    // 코랄/오팔은 1초씩 "찬찬히"
+    const PRELUDE_STEP_MS = 1000;
+
+    async function safeSetPreludeLogo(src){
+      // ✅ 핵심 수정: 먼저 src 제거(초기화) 후 세팅 -> 이전 로고 잔존 방지
+      els.stepLogo.onerror = null;
+      els.stepLogo.removeAttribute("src");
+
+      if(!src) return;
+
+      els.stepLogo.src = src;
+      els.stepLogo.onerror = () => {
+        els.stepLogo.removeAttribute("src");
+      };
+    }
+
+    function showPreludeSequence(draw){
+      const rar = draw.rar;
+      if(rar !== "coral" && rar !== "opal") return Promise.resolve();
+
+      els.prelude.classList.add("show");
+
+      // set contents (SAFE)
+      safeSetPreludeLogo(draw.card.logo || "");
+
+      els.stepPos.textContent = draw.card.pos || "";
+      els.stepRar.textContent = rar.toUpperCase();
+      els.stepRar.className = "rarText step " + rar;
+
+      const hideAll = ()=>{
+        [els.stepLogo, els.stepPos, els.stepRar].forEach(x=>{
+          x.classList.remove("on");
+          x.style.display = "none";
+        });
+      };
+
+      const showStep = (el, ms=PRELUDE_STEP_MS) => new Promise(res=>{
+        hideAll();
+        el.style.display = "block";
+        el.classList.add("on");
+        flashColor(rar);
+        setTimeout(res, ms);
+      });
+
+      return (async ()=>{
+        await showStep(els.stepLogo);
+        await showStep(els.stepPos);
+        await showStep(els.stepRar, PRELUDE_STEP_MS + 200);
+
+        els.prelude.classList.remove("show");
+        hideAll();
+      })();
+    }
+
+    // ===============================
+    // FLOW
+    // ===============================
+    function openPack(){
+      if(opened) return;
+
+      // ✅ (요청1) n트 누적
+      if(getLS(LS_RESET_NEXT_ATTEMPT_KEY) === 1){
+  setLS(LS_ATTEMPT_KEY, 0);
+  setLS(LS_RESET_NEXT_ATTEMPT_KEY, 0);
+}
+      setLS(LS_ATTEMPT_KEY, getLS(LS_ATTEMPT_KEY) + 1);
+      renderAttempt();
+
+      openedResults = [];
+      queue = generatePack5();
+      opened = false;
+      revealing = false;
+      resetRevealVisual();
+
+      els.packCard.classList.add("opening");
+      els.packCard.style.cursor = "default";
+
+      const onEnd = () => {
+        els.packCard.removeEventListener("animationend", onEnd);
+
+        // 팩 숨김 + 클릭 활성
+        els.packCard.style.display = "none";
+        els.clickCatcher.classList.add("on");
+        opened = true;
+
+        // 터치 한 번으로 바로 1장 공개
+        revealNext();
+      };
+
+      els.packCard.addEventListener("animationend", onEnd);
+    }
+
+    async function revealNext(){
+      if(!opened || revealing) return;
+
+      if(queue.length === 0){
+        opened = false;
+        revealing = false;
+        els.clickCatcher.classList.remove("on");
+        showResults();
+        return;
+      }
+
+      revealing = true;
+      resetRevealVisual();
+
+      const draw = queue.shift();
+      openedResults.push(draw);
+
+      const rar = draw.rar;
+
+      if(rar === "coral" || rar === "opal"){
+        await showPreludeSequence(draw);
+      }
+
+      applyRarity(rar);
+
+      els.cardImg.src = draw.card.img;
+      els.cardImg.onerror = () => {
+        console.error("[IMG 404] card:", draw.card.img);
+        // ✅ (요청3) 카드명 placeholder
+        els.cardImg.src = makePlaceholder(labelOf(draw));
+      };
+
+      flashColor(rar);
+      playScanIfNeeded(rar);
+
+      els.cardWrap.classList.remove("show");
+      void els.cardWrap.offsetWidth;
+      els.cardWrap.classList.add("show");
+
+      // 클릭 연타 방지
+      setTimeout(()=>{ revealing = false; }, 260);
+    }
+
+    // ===============================
+    // RESULT MODAL
+    // ===============================
+    function buildThumb(draw){
+      const d = document.createElement("div");
+      d.className = `thumb ${draw.rar}`;
+      const img = document.createElement("img");
+      img.src = draw.card.img;
+      img.alt = `${draw.rar} ${draw.card.teamAbbr} ${draw.card.name}`;
+      img.onerror = () => { img.src = makePlaceholder(labelOf(draw)); }; // ✅ (요청3)
+      d.appendChild(img);
+      return d;
+    }
+
+    function showResults(){
+      els.resultGrid.innerHTML = "";
+      openedResults.forEach(draw => els.resultGrid.appendChild(buildThumb(draw)));
+      renderAttempt(); // ✅ (요청1) 모달 열릴 때도 최신 n트
+      els.modal.classList.add("on");
+    }
+
+    function resetToStart(){
+      els.modal.classList.remove("on");
+      openedResults = [];
+      queue = [];
+      opened = false;
+      revealing = false;
+
+      resetRevealVisual();
+
+      els.packCard.style.display = "grid";
+      els.packCard.classList.remove("opening");
+      els.packCard.style.cursor = "pointer";
+      els.packCard.style.opacity = 1;
+
+      els.clickCatcher.classList.remove("on");
+      // ❌ attempt / streak는 리셋 안 함 (요청사항: 누적)
+      renderAttempt();
+    }
+
+    // 이번에 뽑은 5장의 "카드 이미지"를 한 장의 PNG로 합쳐 저장
+    async function saveResultAsImage(){
+      try{
+        if(openedResults.length !== 5){
+          alert("5장을 모두 공개한 뒤 저장할 수 있어.");
+          return;
+        }
+
+        const load = (src, fallbackLabel)=>new Promise((resolve)=>{
+          const img = new Image();
+          img.crossOrigin = "anonymous";
+          img.onload = ()=> resolve(img);
+          img.onerror = ()=> {
+            const fb = new Image();
+            fb.onload = ()=> resolve(fb);
+            fb.src = makePlaceholder(fallbackLabel); // ✅ (요청3)
+          };
+          img.src = src;
+        });
+
+        const imgs = await Promise.all(
+          openedResults.map(d => load(d.card.img, labelOf(d)))
+        );
+
+        const pad = 28;
+        const gap = 18;
+
+        const cardW = 320;
+        const cardH = Math.round(cardW * (3/2.3));
+
+        const canvasW = pad*2 + (cardW*5) + gap*4;
+        const canvasH = pad*2 + cardH + 90;
+
+        const c = document.createElement("canvas");
+        c.width = canvasW;
+        c.height = canvasH;
+        const ctx = c.getContext("2d");
+
+        const g = ctx.createLinearGradient(0,0,0,canvasH);
+        g.addColorStop(0, "#06070b");
+        g.addColorStop(1, "#0b1222");
+        ctx.fillStyle = g;
+        ctx.fillRect(0,0,canvasW,canvasH);
+
+        const rg1 = ctx.createRadialGradient(canvasW*0.65, canvasH*0.1, 10, canvasW*0.65, canvasH*0.1, canvasW*0.6);
+        rg1.addColorStop(0, "rgba(120,160,255,.18)");
+        rg1.addColorStop(1, "rgba(120,160,255,0)");
+        ctx.fillStyle = rg1;
+        ctx.fillRect(0,0,canvasW,canvasH);
+
+        const rg2 = ctx.createRadialGradient(canvasW*0.88, canvasH*0.15, 10, canvasW*0.88, canvasH*0.15, canvasW*0.55);
+        rg2.addColorStop(0, "rgba(255,120,210,.12)");
+        rg2.addColorStop(1, "rgba(255,120,210,0)");
+        ctx.fillStyle = rg2;
+        ctx.fillRect(0,0,canvasW,canvasH);
+
+        ctx.fillStyle = "rgba(255,255,255,.92)";
+        ctx.font = "700 22px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
+        ctx.fillText(`Pack Result (S${SEASON})`, pad, pad + 26);
+
+        const glow = {
+          silver: "rgba(190,206,220,.55)",
+          gold:   "rgba(255,211,107,.60)",
+          coral:  "rgba(255,127,160,.62)",
+          opal:   "rgba(159,243,255,.60)",
+        };
+
+        const topY = pad + 46;
+        for(let i=0;i<5;i++){
+          const x = pad + i*(cardW + gap);
+          const y = topY;
+
+          const rar = openedResults[i].rar;
+          const glowCol = glow[rar] || "rgba(255,255,255,.35)";
+
+          ctx.save();
+          ctx.shadowColor = glowCol;
+          ctx.shadowBlur = 26;
+          ctx.shadowOffsetX = 0;
+          ctx.shadowOffsetY = 10;
+          ctx.strokeStyle = "rgba(255,255,255,.08)";
+          ctx.lineWidth = 2;
+          ctx.strokeRect(x-2, y-2, cardW+4, cardH+4);
+          ctx.restore();
+
+          ctx.drawImage(imgs[i], x, y, cardW, cardH);
+
+          ctx.strokeStyle = "rgba(255,255,255,.10)";
+          ctx.lineWidth = 1;
+          ctx.strokeRect(x, y, cardW, cardH);
+
+          ctx.fillStyle = "rgba(255,255,255,.78)";
+          ctx.font = "800 14px system-ui, -apple-system, Segoe UI, Roboto, 'Noto Sans KR', Arial";
+          ctx.fillText(rar.toUpperCase(), x, y + cardH + 26);
+        }
+
+        c.toBlob((blob)=>{
+          if(!blob){ alert("저장 실패(브라우저 blob 생성 실패)"); return; }
+          const a = document.createElement("a");
+          a.href = URL.createObjectURL(blob);
+          a.download = `pack_result_${Date.now()}.png`;
+          document.body.appendChild(a);
+          a.click();
+          a.remove();
+        }, "image/png");
+
+      }catch(e){
+        console.error(e);
+        alert("저장 실패. 콘솔(F12) 에러 확인해줘.");
+      }
+    }
+
+    // ===============================
+    // EVENTS
+    // ===============================
+    els.packCard.addEventListener("click", openPack);
+    els.packCard.addEventListener("touchend", (e)=>{ e.preventDefault(); openPack(); }, {passive:false});
+
+    els.clickCatcher.addEventListener("click", revealNext);
+    els.clickCatcher.addEventListener("touchend", (e)=>{ e.preventDefault(); revealNext(); }, {passive:false});
+
+    els.btnRetry.addEventListener("click", resetToStart);
+    els.btnSave.addEventListener("click", saveResultAsImage);
+
+    // start
+    renderAttempt();
+    resetToStart();
+  </script>
+</body>
+</html>
+
+
+
