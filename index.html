@@ -399,6 +399,7 @@
     // ===============================
     const LS_ATTEMPT_KEY = "rkbo_attempt_count";
     const LS_NO_OPAL_STREAK_KEY = "rkbo_no_opal_streak";
+    const LS_RESET_NEXT_ATTEMPT_KEY = "rkbo_reset_attempt_next";
 
     const getLS = (k)=> Number(localStorage.getItem(k) || "0");
     const setLS = (k,v)=> localStorage.setItem(k, String(v));
@@ -2259,8 +2260,7 @@ function generatePack5(){
 
   // ✅ 오팔 뽑으면 n트 카운트 초기화 (다음 팩부터 1트로 시작)
   if(hasOpal){
-    setLS(LS_ATTEMPT_KEY, 0);
-    renderAttempt();
+    setLS(LS_RESET_NEXT_ATTEMPT_KEY, 1);
   }
 
   return draws;
@@ -2371,6 +2371,10 @@ function generatePack5(){
       if(opened) return;
 
       // ✅ (요청1) n트 누적
+      if(getLS(LS_RESET_NEXT_ATTEMPT_KEY) === 1){
+  setLS(LS_ATTEMPT_KEY, 0);
+  setLS(LS_RESET_NEXT_ATTEMPT_KEY, 0);
+}
       setLS(LS_ATTEMPT_KEY, getLS(LS_ATTEMPT_KEY) + 1);
       renderAttempt();
 
@@ -2611,5 +2615,6 @@ function generatePack5(){
   </script>
 </body>
 </html>
+
 
 
