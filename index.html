@@ -2230,33 +2230,42 @@
       return list[list.length - 1].card;
     }
 
-    // ✅ (요청2) 50천장: "연속 50팩 오팔 0회"면 다음 팩에서 오팔 1장 강제
+// ✅ (요청2) 50천장 + (추가요청) 오팔 나오면 n트 초기화
 function generatePack5(){
+  const streak = getLS(LS_NO_OPAL_STREAK_KEY);     // 연속 오팔 실패 팩 수
+  const isPityPack = (streak >= 49);               // 이번이 50번째 팩이면 천장 발동
+
   const draws = [];
   for(let i=0;i<5;i++){
     const card = pickWeightedCard();
     draws.push({ rar: normRarity(card.rarity), card });
   }
 
-  // ✅ 오팔이 1장이라도 있으면 "트" 카운트 초기화
+  // 천장 발동이면 5장 중 1장을 오팔로 강제 교체
+  if(isPityPack){
+    const opalPool = CARD_POOL.filter(c => normRarity(c.rarity) === "opal");
+    if(opalPool.length > 0){
+      const forced = opalPool[Math.floor(Math.random() * opalPool.length)];
+      const idx = Math.floor(Math.random() * draws.length);
+      draws[idx] = { rar: "opal", card: forced };
+    }
+  }
+
+  // 이번 팩에 오팔이 있는지 체크
   const hasOpal = draws.some(d => d.rar === "opal");
+
+  // 오팔 천장용 연속 실패 카운트 업데이트
+  setLS(LS_NO_OPAL_STREAK_KEY, hasOpal ? 0 : (streak + 1));
+
+  // ✅ 오팔 뽑으면 n트 카운트 초기화 (다음 팩부터 1트로 시작)
   if(hasOpal){
-    localStorage.setItem("rkbo_attempt_count", "0");
-    // 표시도 바로 갱신(네가 attempt 뱃지 render 함수 만들었으면)
-    if(typeof renderAttemptBadge === "function") renderAttemptBadge();
-    // 네 코드에서 함수명이 다르면 아래처럼 쓰면 됨:
-    // const el = document.getElementById("attemptBadge");
-    // if(el) el.textContent = "1트";
+    setLS(LS_ATTEMPT_KEY, 0);
+    renderAttempt();
   }
 
   return draws;
 }
-      const hasOpal = draws.some(d => d.rar === "opal");
-      setLS(LS_NO_OPAL_STREAK_KEY, hasOpal ? 0 : (streak + 1));
-
-      return draws;
-    }
-
+      
     function flashColor(rar){
       const colorMap = {
         silver: "rgba(207,214,222,.65)",
@@ -2602,4 +2611,5 @@ function generatePack5(){
   </script>
 </body>
 </html>
+
 
