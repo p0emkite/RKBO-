@@ -2332,31 +2332,12 @@ function generatePack5(){
 // EVENTS
 // ===============================
 
-// 팩 이미지 클릭
-els.packCard.addEventListener("click", (e) => {
-  e.stopPropagation();
-  openPack();
-});
-
-els.packCard.addEventListener("touchend", (e) => {
-  e.preventDefault();
-  e.stopPropagation();
-  openPack();
-}, { passive:false });
-
-// 팩이 화면에 떠 있는 초기 상태에서는
-// 팩 이미지 바깥의 화면 아무 곳이나 눌러도 팩 오픈
-document.querySelector(".stage").addEventListener("click", (e) => {
-  // 이미 팩을 열었거나 여는 중이면 무시
-  if (opened || isOpening) return;
-
-  // 카드 공개용 전체 클릭 영역이 활성화되어 있으면 무시
-  if (els.clickCatcher.classList.contains("on")) return;
-
-  // 결과창이 열려 있으면 무시
+document.addEventListener("pointerup", (e) => {
   if (els.modal.classList.contains("on")) return;
 
-  openPack();
+  if (!opened && !isOpening && els.packCard.style.display !== "none") {
+    openPack();
+  }
 });
 
 els.clickCatcher.addEventListener("click", revealNext);
@@ -2364,14 +2345,14 @@ els.clickCatcher.addEventListener("click", revealNext);
 els.clickCatcher.addEventListener("touchend", (e) => {
   e.preventDefault();
   revealNext();
-}, { passive:false});
+}, { passive:false });
 
 els.btnRetry.addEventListener("click", resetToStart);
 els.btnSave.addEventListener("click", saveResultAsImage);
 
-    // start
-    renderAttempt();
-    resetToStart();
+// start
+renderAttempt();
+resetToStart();
   </script>
 </body>
 </html>
