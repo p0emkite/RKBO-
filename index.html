@@ -244,6 +244,116 @@
           rgba(255,255,255,0));
     }
 
+
+    /* ================================================================
+       CURRENT CARD TEAM COLOR AURA
+       ================================================================ */
+    .teamAura{
+      --team-rgb: 255,255,255;
+
+      position:fixed;
+      inset:-15%;
+      z-index:1;
+      pointer-events:none;
+      overflow:hidden;
+
+      opacity:0;
+      transform:scale(1.04);
+      transition:
+        opacity 500ms ease,
+        filter 500ms ease;
+
+      background:
+        radial-gradient(
+          ellipse 48% 62% at 50% 50%,
+          rgba(var(--team-rgb), .17) 0%,
+          rgba(var(--team-rgb), .09) 32%,
+          rgba(var(--team-rgb), .025) 58%,
+          transparent 76%
+        );
+    }
+
+    .teamAura::before,
+    .teamAura::after{
+      content:"";
+      position:absolute;
+      inset:-25%;
+      pointer-events:none;
+      mix-blend-mode:screen;
+      will-change:transform, opacity;
+    }
+
+    /* 화면 전체를 천천히 도는 넓은 빛 */
+    .teamAura::before{
+      background:
+        radial-gradient(
+          circle at 22% 35%,
+          rgba(var(--team-rgb), .16) 0%,
+          rgba(var(--team-rgb), .07) 24%,
+          transparent 52%
+        ),
+        radial-gradient(
+          circle at 78% 62%,
+          rgba(var(--team-rgb), .14) 0%,
+          rgba(var(--team-rgb), .055) 27%,
+          transparent 55%
+        );
+
+      filter:blur(34px);
+      animation:teamAuraDrift 9s ease-in-out infinite alternate;
+    }
+
+    /* 카드 뒤를 중심으로 은은하게 숨 쉬는 빛 */
+    .teamAura::after{
+      background:
+        radial-gradient(
+          ellipse 34% 48% at 50% 50%,
+          rgba(var(--team-rgb), .20) 0%,
+          rgba(var(--team-rgb), .09) 38%,
+          transparent 72%
+        );
+
+      filter:blur(28px);
+      animation:teamAuraBreathe 4.8s ease-in-out infinite;
+    }
+
+    .teamAura.on{
+      opacity:1;
+    }
+
+    @keyframes teamAuraDrift{
+      0%{
+        transform:translate3d(-3%, -2%, 0) rotate(-4deg) scale(1);
+        opacity:.58;
+      }
+      50%{
+        transform:translate3d(3%, 1%, 0) rotate(3deg) scale(1.08);
+        opacity:.88;
+      }
+      100%{
+        transform:translate3d(-1%, 4%, 0) rotate(-2deg) scale(1.03);
+        opacity:.68;
+      }
+    }
+
+    @keyframes teamAuraBreathe{
+      0%, 100%{
+        transform:scale(.94);
+        opacity:.46;
+      }
+      50%{
+        transform:scale(1.13);
+        opacity:.88;
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce){
+      .teamAura::before,
+      .teamAura::after{
+        animation:none;
+      }
+    }
+
     /* RESULT MODAL */
     .modal{
       position:fixed; inset:0;
@@ -343,6 +453,9 @@
 </head>
 <body>
   <div id="flash"></div>
+
+  <!-- 현재 공개된 카드의 팀 컬러 배경 오로라 -->
+  <div id="teamAura" class="teamAura"></div>
 
   <div class="stage">
     <div class="slot" aria-hidden="true">
@@ -1909,6 +2022,8 @@
     const $ = (id)=>document.getElementById(id);
     const els = {
       flash: $("flash"),
+      teamAura: $("teamAura"),
+
       packCard: $("packCard"),
       clickCatcher: $("clickCatcher"),
 
@@ -1937,6 +2052,33 @@
     // HELPERS
     // ===============================
     function normRarity(r){ return String(r || "").trim().toLowerCase(); }
+
+    const TEAM_AURA_RGB = {
+      KIA: "234,0,41",
+      LOT: "108,172,228",
+      SSG: "206,14,45",
+      LG:  "195,4,82",
+      NC:  "199,160,121",
+      DOO: "26,23,72",
+      SAM: "7,76,161",
+      HAN: "252,78,0"
+    };
+
+    function showTeamAura(teamAbbr){
+      const team = String(teamAbbr || "").trim().toUpperCase();
+      const rgb = TEAM_AURA_RGB[team] || "255,255,255";
+
+      els.teamAura.style.setProperty("--team-rgb", rgb);
+
+      // 같은 팀이 연속으로 나와도 애니메이션을 자연스럽게 다시 시작
+      els.teamAura.classList.remove("on");
+      void els.teamAura.offsetWidth;
+      els.teamAura.classList.add("on");
+    }
+
+    function hideTeamAura(){
+      els.teamAura.classList.remove("on");
+    }
 
     function pickWeightedCard(){
       const list = CARD_POOL
@@ -2018,6 +2160,9 @@ function generatePack5(){
 
     function resetRevealVisual(){
       els.prelude.classList.remove("show");
+
+      // 이전 카드의 팀 컬러 배경 오로라 제거
+      hideTeamAura();
 
       // ✅ 로고/카드 이미지 src도 같이 초기화 (이전 이미지 잔존 방지)
       els.stepLogo.onerror = null;
@@ -2154,6 +2299,9 @@ function generatePack5(){
       if(rar === "coral" || rar === "opal"){
         await showPreludeSequence(draw);
       }
+
+      // 실버부터 오팔까지 모든 등급에 현재 카드 팀 컬러 오로라 적용
+      showTeamAura(draw.card.teamAbbr);
 
       applyRarity(rar);
 
