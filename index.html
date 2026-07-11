@@ -43,6 +43,7 @@
     /* fullscreen stage centered */
     .stage{
       position:fixed; inset:0;
+      z-index:10; /* 팀 컬러 오로라보다 항상 위 */
       display:grid;
       place-items:center;
     }
@@ -170,7 +171,8 @@
       transform: scale(.90);
       opacity:0;
       filter: drop-shadow(0 26px 34px rgba(0,0,0,.55));
-      z-index:40;
+      z-index:50; /* 배경 오로라 및 기타 연출보다 항상 앞 */
+      isolation:isolate;
       pointer-events:none;
     }
     .cardWrap.show{ animation: cardIn 520ms cubic-bezier(.2,.9,.2,1) forwards; }
@@ -247,29 +249,33 @@
 
     /* ================================================================
        CURRENT CARD TEAM COLOR AURA
+       - 카드보다 뒤에만 표시
+       - 어두운 팀 컬러도 충분히 보이도록 밝기/채도 보정
        ================================================================ */
     .teamAura{
       --team-rgb: 255,255,255;
 
       position:fixed;
-      inset:-15%;
-      z-index:1;
+      inset:-18%;
+      z-index:0; /* .stage(z-index:10)보다 아래 */
       pointer-events:none;
       overflow:hidden;
 
       opacity:0;
-      transform:scale(1.04);
-      transition:
-        opacity 500ms ease,
-        filter 500ms ease;
+      transform:scale(1.05);
+      transition:opacity 420ms ease;
+
+      /* 남색처럼 어두운 팀 컬러도 배경에서 보이도록 보정 */
+      filter:saturate(1.55) brightness(1.75);
 
       background:
         radial-gradient(
-          ellipse 48% 62% at 50% 50%,
-          rgba(var(--team-rgb), .17) 0%,
-          rgba(var(--team-rgb), .09) 32%,
-          rgba(var(--team-rgb), .025) 58%,
-          transparent 76%
+          ellipse 58% 70% at 50% 50%,
+          rgba(var(--team-rgb), .48) 0%,
+          rgba(var(--team-rgb), .28) 28%,
+          rgba(var(--team-rgb), .13) 52%,
+          rgba(var(--team-rgb), .035) 70%,
+          transparent 84%
         );
     }
 
@@ -277,44 +283,46 @@
     .teamAura::after{
       content:"";
       position:absolute;
-      inset:-25%;
+      inset:-22%;
       pointer-events:none;
-      mix-blend-mode:screen;
       will-change:transform, opacity;
     }
 
-    /* 화면 전체를 천천히 도는 넓은 빛 */
+    /* 화면 전체에서 천천히 이동하는 넓은 팀 컬러 빛 */
     .teamAura::before{
       background:
         radial-gradient(
-          circle at 22% 35%,
-          rgba(var(--team-rgb), .16) 0%,
-          rgba(var(--team-rgb), .07) 24%,
-          transparent 52%
+          circle at 18% 30%,
+          rgba(var(--team-rgb), .44) 0%,
+          rgba(var(--team-rgb), .24) 24%,
+          rgba(var(--team-rgb), .08) 46%,
+          transparent 64%
         ),
         radial-gradient(
-          circle at 78% 62%,
-          rgba(var(--team-rgb), .14) 0%,
-          rgba(var(--team-rgb), .055) 27%,
-          transparent 55%
+          circle at 82% 68%,
+          rgba(var(--team-rgb), .40) 0%,
+          rgba(var(--team-rgb), .21) 26%,
+          rgba(var(--team-rgb), .07) 48%,
+          transparent 66%
         );
 
-      filter:blur(34px);
-      animation:teamAuraDrift 9s ease-in-out infinite alternate;
+      filter:blur(44px);
+      animation:teamAuraDrift 8s ease-in-out infinite alternate;
     }
 
-    /* 카드 뒤를 중심으로 은은하게 숨 쉬는 빛 */
+    /* 카드 뒤 중심에서 천천히 숨 쉬는 집중광 */
     .teamAura::after{
       background:
         radial-gradient(
-          ellipse 34% 48% at 50% 50%,
-          rgba(var(--team-rgb), .20) 0%,
-          rgba(var(--team-rgb), .09) 38%,
-          transparent 72%
+          ellipse 42% 58% at 50% 50%,
+          rgba(var(--team-rgb), .58) 0%,
+          rgba(var(--team-rgb), .32) 30%,
+          rgba(var(--team-rgb), .14) 52%,
+          transparent 74%
         );
 
-      filter:blur(28px);
-      animation:teamAuraBreathe 4.8s ease-in-out infinite;
+      filter:blur(36px);
+      animation:teamAuraBreathe 4.2s ease-in-out infinite;
     }
 
     .teamAura.on{
@@ -323,27 +331,27 @@
 
     @keyframes teamAuraDrift{
       0%{
-        transform:translate3d(-3%, -2%, 0) rotate(-4deg) scale(1);
-        opacity:.58;
+        transform:translate3d(-4%, -3%, 0) rotate(-5deg) scale(1);
+        opacity:.64;
       }
       50%{
-        transform:translate3d(3%, 1%, 0) rotate(3deg) scale(1.08);
-        opacity:.88;
+        transform:translate3d(4%, 2%, 0) rotate(4deg) scale(1.10);
+        opacity:1;
       }
       100%{
-        transform:translate3d(-1%, 4%, 0) rotate(-2deg) scale(1.03);
-        opacity:.68;
+        transform:translate3d(-1%, 5%, 0) rotate(-2deg) scale(1.04);
+        opacity:.76;
       }
     }
 
     @keyframes teamAuraBreathe{
       0%, 100%{
-        transform:scale(.94);
-        opacity:.46;
+        transform:scale(.91);
+        opacity:.58;
       }
       50%{
-        transform:scale(1.13);
-        opacity:.88;
+        transform:scale(1.16);
+        opacity:1;
       }
     }
 
@@ -2504,6 +2512,5 @@ resetToStart();
   </script>
 </body>
 </html>
-
 
 
