@@ -1,5 +1,6 @@
 "use strict";
 const $=id=>document.getElementById(id);
+let championMap={};
 const TEAM={
  DOO:["두산 베어스","#003468","DOOSAN BEARS"],HAN:["한화 이글스","#ea580c","HANWHA EAGLES"],
  KIA:["KIA 타이거즈","#cc1129","KIA TIGERS"],LG:["LG 트윈스","#c30434","LG TWINS"],
@@ -56,7 +57,7 @@ function parsePlayerFile(text,path){
  const currentTeam=LONG_TO_CODE[(teamLong?.[1]||"").trim().toUpperCase()]||null;
  const latestYear=Math.max(0,...Object.keys(main.seasons).map(Number));
  if(latestYear&&currentTeam&&!main.seasons[latestYear].team)main.seasons[latestYear].team=currentTeam;
- return {id:id[1],name:strip(n[1]),number:strip(number?.[1]),team:currentTeam,kind:main.kind,seasons:main.seasons,career:main.career,last3:main.last3,latestYear,source:"HHRecord player page"};
+ return {id:id[1],name:strip(n[1]),number:strip(number?.[1]),team:currentTeam,kind:main.kind,seasons:main.seasons,career:main.career,last3:main.last3,latestYear,hhLatestYear:latestYear,source:"HHRecord player page"};
 }
 function mergeRecord(old,p){
  if(!old)return p;
@@ -91,7 +92,7 @@ async function importZip(file){
    if(i%20===0){report("선수 기록 추출 중 "+(i+1)+"/"+files.length);await new Promise(r=>setTimeout(r,0))}
   }
   if(!valid)throw Error("읽을 수 있는 선수 기록이 없습니다.");
-  for(const p of Object.values(incoming))players[p.id]=mergeRecord(players[p.id],p);
+  for(const p of Object.values(incoming)){players[p.id]=mergeRecord(players[p.id],p);players[p.id].hhLatestYear=Math.max(players[p.id].hhLatestYear||0,p.latestYear||0);}
   await store();populate();report("완료: "+valid+"명 처리"+(fail?" · "+fail+"개 파일 분석 실패":"")+" · DB 총 "+Object.keys(players).length+"명");
  }catch(e){console.error(e);report("불러오기 실패: "+e.message)}finally{$("zipInput").disabled=false}
 }
@@ -148,6 +149,7 @@ async function fetchLogo(team){
  img.src="../logos/"+team+".webp";
 }
 function draw(){
+ if(window.RKBOCard){const p=players[selectedId];const data=RKBOCard.draw({canvas:$("cardCanvas"),p,teamInfo:TEAM,image:photo,logos,wins:championMap,gradient:$("bgStyle").value==="gradient",color2:$("bgColor2").value,angle:$("bgAngle").value,photoZoom:$("zoom").value,photoX:$("offsetX").value,photoY:$("offsetY").value,fa:$("faCheck").checked,faGrade:$("faGrade").value||computeFA(p||{kind:"batter"})});$("downloadBtn").disabled=!p;$("playerInfo").textContent=p?("선수 ID "+p.id+" · "+toText(p.team)+" · "+Object.keys(p.seasons||{}).length+"시즌 · FA "+computeFA(p)+" · 우승 "+data.won+"회"):"선수를 선택하세요.";$("previewDescription").textContent=p?p.name+" · "+Object.keys(p.seasons||{}).length+"시즌":"선수를 선택하세요.";$("kindBadge").textContent=p?.kind==="pitcher"?"PITCHER":p?"BATTER":"CAREER";if(p)Object.values(p.seasons||{}).forEach(r=>fetchLogo(r.team));return;}
  const canvas=$("cardCanvas"),ctx=canvas.getContext("2d");
  const p=players[selectedId],list=p?Object.values(p.seasons||{}).sort((a,b)=>a.year-b.year):[];
  const cols=p?(p.kind==="pitcher"?pitCols:batCols):batCols;
@@ -197,9 +199,12 @@ function draw(){
  $("kindBadge").textContent=p?.kind==="pitcher"?"PITCHER":p?"BATTER":"CAREER";
 }
 async function init(){
- try{await restore();populate();report("브라우저 DB 준비 완료 · HHRecord ZIP을 업로드할 수 있습니다.")}catch(e){report("브라우저 저장소를 열지 못했습니다: "+e.message)}
+ try{await restore();try{championMap=JSON.parse(localStorage.getItem("rkbo-champions")||"{}")}catch(e){championMap={}}; $("champions").value=Object.entries(championMap).sort((a,b)=>Number(a[0])-Number(b[0])).map(([a,b])=>a+","+b).join("\n");populate();report("브라우저 DB 준비 완료 · HHRecord ZIP을 업로드할 수 있습니다.")}catch(e){report("브라우저 저장소를 열지 못했습니다: "+e.message)}
  for(const id of ["teamSelect","playerSearch"])$(id).addEventListener(id==="playerSearch"?"input":"change",updatePlayerList);
  $("playerSelect").addEventListener("change",()=>{selectedId=$("playerSelect").value;photo=null;$("photoInput").value="";$("faCheck").checked=false;$("faGrade").disabled=true;draw()});
+ $("xlsInput").addEventListener("change",async e=>{const file=e.target.files[0];if(!file)return;try{report("RKBO XLS 읽는 중...");const parsed=RKBOXls.parse(await file.arrayBuffer());const result=RKBOXls.reconcile(players,RKBOXls.group(parsed));players=result.players;await store();populate();report("XLS "+parsed.length+"개 기록 · 연결 "+result.info.linked+"명 · 신규 "+result.info.created+"명 · 중복·충돌 "+result.info.conflicts+"건 · 판정 보류 "+result.info.ambiguous+"명");}catch(e){console.error(e);report("XLS 불러오기 실패: "+e.message)}e.target.value=""});
+ for(const id of ["bgStyle","bgColor2","bgAngle"])$(id).addEventListener("change",draw);
+ $("saveChampions").onclick=()=>{const obj={};let errors=[];for(const line of $("champions").value.split(/\r?\n/)){if(!line.trim()||line.trim().startsWith("#"))continue;const m=line.trim().match(/^(\d+)\s*[,;\t]\s*(DOO|HAN|KIA|LG|LOT|NC|SAM|SSG|KT|KIW|SK)$/i);if(!m){errors.push(line);continue}obj[Number(m[1])]=m[2].toUpperCase()}if(errors.length){report("우승팀 입력 형식 오류: "+errors.slice(0,3).join(" / "));return}championMap=obj;localStorage.setItem("rkbo-champions",JSON.stringify(championMap));report("우승 시즌 "+Object.keys(obj).length+"개 저장");draw()};
  $("zipInput").addEventListener("change",async e=>{if(e.target.files[0])await importZip(e.target.files[0]);e.target.value=""});
  $("photoInput").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const object=URL.createObjectURL(file),img=new Image();img.onload=()=>{photo=img;URL.revokeObjectURL(object);draw()};img.onerror=()=>{URL.revokeObjectURL(object);report("PNG 이미지를 읽을 수 없습니다.")};img.src=object});
  for(const id of ["zoom","offsetX","offsetY"])$(id).addEventListener("input",()=>{$(id+"Val").textContent=$(id).value+(id==="zoom"?"%":"");draw()});
