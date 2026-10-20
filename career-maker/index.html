@@ -7,6 +7,9 @@
 <title>RKBO 통산 제작기</title>
 <link rel="stylesheet" href="./styles.css">
 <script defer src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script defer src="./rkbo-xls.js"></script>
+<script defer src="./card-renderer.js"></script>
 <script defer src="./app.js"></script>
 </head>
 <body>
@@ -21,7 +24,7 @@
       <p class="help">HHRecord ZIP의 <code>Results/Players/p_*.htm</code>에서 선수별 역대 기록, LAST 3, ML Career를 자동 추출합니다.</p>
       <label class="upload-label" for="zipInput">+ HHRecord 시즌 ZIP 추가 / 업데이트</label>
       <input id="zipInput" type="file" accept=".zip,application/zip" hidden>
-      <p id="importProgress" class="hint">최초 한 번 가져오면 이 브라우저에 선수 데이터가 보관됩니다.</p>
+      <label class="upload-label subdued" for="xlsInput">+ RKBO.xls 시즌 기록 추가 / 업데이트</label><input id="xlsInput" type="file" accept=".xls,.xlsx" hidden><p id="importProgress" class="hint">최초 한 번 가져오면 이 브라우저에 선수 데이터가 보관됩니다.</p>
       <div class="action-row">
         <button id="exportDb" type="button" class="secondary">DB JSON 백업</button>
         <label class="secondary button-label" for="importDb">DB 백업 복원</label>
@@ -48,14 +51,14 @@
         <label>세로 위치 <input id="offsetY" type="range" min="-250" max="250" value="0"><output id="offsetYVal">0</output></label>
       </div>
       <div class="action-row"><button class="secondary" id="resetPhoto">사진 위치 초기화</button></div>
-      <div class="fa-section">
+      <div class="fa-section"><label>헤더 배경 스타일<select id="bgStyle"><option value="solid">팀 컬러 단색</option><option value="gradient">그라데이션</option></select></label><div class="fields two"><label>그라데이션 끝 색상<input id="bgColor2" type="color" value="#17263c"></label><label>방향 <select id="bgAngle"><option value="0">가로</option><option value="90">세로</option><option value="45">대각선 ↗</option><option value="-45">대각선 ↘</option></select></label></div></div><div class="fa-section">
         <label class="check"><input type="checkbox" id="faCheck"> FA 선수 표시</label>
         <label>FA 등급 <select id="faGrade" disabled><option value="">미설정</option><option value="A">A등급</option><option value="B">B등급</option><option value="C">C등급</option></select></label>
         <p class="hint">기존 구글 시트 FA 수식 기준으로 등급을 자동 제안하며 필요할 때 수동 변경할 수 있습니다.</p>
       </div>
     </section>
-    <section class="panel">
-      <div class="section-title"><h2>04 · PNG 저장</h2></div>
+    <section class="panel"><div class="section-title"><h2>04 · 우승 시즌 관리</h2></div><p class="help">우승 연도와 구단을 지정하면 해당 구단에서 뛰었던 선수의 헤더에 우승 시즌 수만큼 별이 표시됩니다. 입력 예: <code>56,LG</code></p><textarea id="champions" rows="5" placeholder="시즌 차수,구단 코드&#10;56,LG&#10;57,SAM"></textarea><div class="action-row"><button id="saveChampions" class="secondary">우승 시즌 정보 저장</button></div><p class="hint">우승 구단 정보는 업로드 파일에 확실히 존재하지 않으므로 임의 자동 생성하지 않습니다.</p></section><section class="panel">
+      <div class="section-title"><h2>05 · PNG 저장</h2></div>
       <p class="help">선수의 실제 ML 시즌 수에 맞춰 표 높이가 자동 확장됩니다. A등급 FA는 노란색 글씨로 표시됩니다.</p>
       <button id="downloadBtn" type="button" class="primary" disabled>통산 PNG로 저장 ↓</button>
       <p class="hint">베타 출력 크기: 너비 1640px, 높이 시즌 수에 따라 자동 조절. 최종 규격은 템플릿 파일을 받으면 반영합니다.</p>
