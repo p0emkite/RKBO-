@@ -92,7 +92,16 @@ async function importZip(file){
    if(i%20===0){report("선수 기록 추출 중 "+(i+1)+"/"+files.length);await new Promise(r=>setTimeout(r,0))}
   }
   if(!valid)throw Error("읽을 수 있는 선수 기록이 없습니다.");
-  for(const p of Object.values(incoming)){players[p.id]=mergeRecord(players[p.id],p);players[p.id].hhLatestYear=Math.max(players[p.id].hhLatestYear||0,p.latestYear||0);}
+  for(const p of Object.values(incoming)){
+    // Resolve XLS-first imports: move an exact-matched provisional XLS player to the stable HHRecord ID.
+    const xlsOnly=Object.fromEntries(Object.entries(players).filter(([key])=>key.startsWith("xls:")));
+    const matched=window.RKBOXls?.match(p,xlsOnly);
+    if(matched?.id&&!players[p.id]){
+      const restored=RKBOXls.merge(p,players[matched.id]);restored.id=p.id;
+      delete players[matched.id];players[p.id]=restored;
+    }else players[p.id]=mergeRecord(players[p.id],p);
+    players[p.id].hhLatestYear=Math.max(players[p.id].hhLatestYear||0,p.latestYear||0);
+   }
   await store();populate();report("완료: "+valid+"명 처리"+(fail?" · "+fail+"개 파일 분석 실패":"")+" · DB 총 "+Object.keys(players).length+"명");
  }catch(e){console.error(e);report("불러오기 실패: "+e.message)}finally{$("zipInput").disabled=false}
 }
