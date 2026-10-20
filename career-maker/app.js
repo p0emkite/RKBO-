@@ -115,8 +115,8 @@ function roundedRect(ctx,x,y,w,h,r,fill){ctx.beginPath();ctx.roundRect(x,y,w,h,r
 function text(ctx,str,x,y,opt={}){ctx.fillStyle=opt.color||"#122139";ctx.font=(opt.bold?"700 ":"500 ")+(opt.size||23)+"px Arial, 'Malgun Gothic',sans-serif";ctx.textAlign=opt.align||"left";ctx.textBaseline="middle";ctx.fillText(String(str),x,y,opt.max||1e4)}
 function fmt(s,key){
  const v=s?.[key];
- if(v==null||v==="")return "—";
  if(key==="OPS")return s?.OBP!=null&&s?.SLG!=null?(Number(s.OBP)+Number(s.SLG)).toFixed(3):"—";
+ if(v==null||v==="")return "—";
  if(["AVG","OBP","SLG"].includes(key))return Number(v).toFixed(3).replace(/^0\./,".");
  if(key==="ERA")return Number(v).toFixed(2);
  if(key==="IP"){
@@ -180,7 +180,7 @@ function draw(){
  ctx.fillStyle="#e0e8f2";ctx.fillRect(startX,top,tableWidth,rowH);
  text(ctx,"시즌 / 구단",startX+16,top+rowH/2,{bold:true,size:17});
  cols.forEach((key,i)=>text(ctx,key==="OPS"?"OPS":key,startX+labelW+(i+.5)*cw,top+rowH/2,{bold:true,size:Math.min(19,cw*.38),align:"center"}));
- const entries=p?[...list.map(row=>({...row,label:row.year+"차"})),{label:"LAST 3",team:null,stats:p.last3||{}},{label:"ML 통산",team:null,stats:p.career||{}}]:[];
+ const entries=p?[...list.map(row=>({...row,label:(row.year-1950)+"차"})),{label:"LAST 3",team:null,stats:p.last3||{}},{label:"ML 통산",team:null,stats:p.career||{}}]:[];
  entries.forEach((rec,i)=>{
   const y=top+(i+1)*rowH,total=i>=list.length;
   ctx.fillStyle=total?(i===list.length?"#d8e4f3":"#bed4ec"):i%2?"#f0f4fa":"#fff";ctx.fillRect(startX,y,tableWidth,rowH);
@@ -199,7 +199,7 @@ function draw(){
 async function init(){
  try{await restore();populate();report("브라우저 DB 준비 완료 · HHRecord ZIP을 업로드할 수 있습니다.")}catch(e){report("브라우저 저장소를 열지 못했습니다: "+e.message)}
  for(const id of ["teamSelect","playerSearch"])$(id).addEventListener(id==="playerSearch"?"input":"change",updatePlayerList);
- $("playerSelect").addEventListener("change",()=>{selectedId=$("playerSelect").value;$("faCheck").checked=false;$("faGrade").disabled=true;draw()});
+ $("playerSelect").addEventListener("change",()=>{selectedId=$("playerSelect").value;photo=null;$("photoInput").value="";$("faCheck").checked=false;$("faGrade").disabled=true;draw()});
  $("zipInput").addEventListener("change",async e=>{if(e.target.files[0])await importZip(e.target.files[0]);e.target.value=""});
  $("photoInput").addEventListener("change",e=>{const file=e.target.files[0];if(!file)return;const object=URL.createObjectURL(file),img=new Image();img.onload=()=>{photo=img;URL.revokeObjectURL(object);draw()};img.onerror=()=>{URL.revokeObjectURL(object);report("PNG 이미지를 읽을 수 없습니다.")};img.src=object});
  for(const id of ["zoom","offsetX","offsetY"])$(id).addEventListener("input",()=>{$(id+"Val").textContent=$(id).value+(id==="zoom"?"%":"");draw()});
